@@ -1,0 +1,576 @@
+/* =========================================================
+   มาตรฐานฟอนต์ราชการไทย TH Sarabun New
+   ========================================================= */
+@font-face {
+  font-family: "TH Sarabun New";
+  font-weight: 400;
+  font-style: normal;
+  src: local("TH Sarabun New"), local("THSarabunNew"), local("TH Sarabun PSK"), local("THSarabunPSK"),
+       url("/fonts/THSarabunNew-Regular.woff") format("woff"),
+       url("/fonts/THSarabunNew-Regular.ttf") format("truetype");
+  font-display: block;
+}
+
+@font-face {
+  font-family: "TH Sarabun New";
+  font-weight: 700;
+  font-style: normal;
+  src: local("TH Sarabun New Bold"), local("THSarabunNew-Bold"), local("TH Sarabun PSK Bold"), local("THSarabunPSK-Bold"),
+       url("/fonts/THSarabunNew-Bold.woff") format("woff"),
+       url("/fonts/THSarabunNew-Bold.ttf") format("truetype");
+  font-display: block;
+}
+
+:root {
+  --page-width: 210mm;
+  --page-height: 297mm;
+  --margin-top: 2.5cm;
+  --margin-left: 3cm;
+  --margin-right: 2cm;
+  --margin-bottom: 2cm;
+  --font-family: "TH Sarabun New", "THSarabunNew", "TH Sarabun PSK", serif;
+  --font-size-body: 16pt;
+  --line-height: 1.15;
+  --center-fix: -0.5cm;
+}
+
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+/* =========================================================
+   หน้ากระดาษพิมพ์ A4 ตามระเบียบสารบรรณ (210 x 297 mm)
+   ========================================================= */
+.print-page {
+  width: var(--page-width);
+  min-height: var(--page-height);
+  box-sizing: border-box;
+  padding: var(--margin-top) var(--margin-right) var(--margin-bottom) var(--margin-left);
+  font-family: var(--font-family) !important;
+  font-size: var(--font-size-body);
+  line-height: var(--line-height);
+  color: #000000;
+  background: #ffffff;
+  position: relative;
+  text-align: left;
+}
+
+/* =========================================================
+   1. หนังสือภายนอก (External Letter) ตาม 03.pdf (page03.jpg)
+   ========================================================= */
+/* ครุฑสูง 3 ซม. ห่างจากขอบบนกระดาษประมาณ 1.5 ซม. */
+.doc-external .crest-wrapper.external-crest {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: -1cm;
+  margin-bottom: 0.3cm;
+  transform: translateX(var(--center-fix));
+}
+
+.doc-external .crest-wrapper.external-crest img {
+  height: 3cm;
+  width: auto;
+}
+
+.ext-meta-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6pt;
+  font-size: 16pt;
+}
+
+.ext-meta-header .meta-left {
+  flex: 1;
+}
+
+.ext-meta-header .meta-right {
+  flex: 1;
+  text-align: right;
+  line-height: 1.15;
+}
+
+/* วันที่ หนังสือภายนอก: วางไว้กึ่งกลางหน้ากระดาษจริง (แนวเดียวกับตราครุฑ) */
+.ext-date-row {
+  text-align: center;
+  margin-top: 6pt;
+  margin-bottom: 6pt;
+  transform: translateX(var(--center-fix));
+  font-size: 16pt;
+}
+
+/* คำลงท้าย: "ขอแสดงความนับถือ" กึ่งกลางหน้ากระดาษ ห่างจากเนื้อหา 1 Enter + Before 12pt */
+.doc-external .closing {
+  margin-top: 16pt;
+  text-align: center;
+  transform: translateX(var(--center-fix));
+  font-size: 16pt;
+}
+
+/* =========================================================
+   2. หนังสือภายใน / บันทึกข้อความ (Memo) ตาม in01.pdf
+   - ครุฑสูง ๑.๕ ซม. ห่างจากขอบกระดาษด้านบนประมาณ ๑.๕ ซม.
+   - บันทึกข้อความ ขนาด ๒๙ pt ตัวหนา ค่าแน่นอน (Exactly) ๓๕ pt
+   ========================================================= */
+.memo-header {
+  position: relative;
+  height: 1.5cm;
+  min-height: 1.5cm;
+  margin-top: -1cm; /* ขอบบน 2.5cm - 1.0cm = 1.5cm จากขอบกระดาษด้านบนตามระเบียบ */
+  margin-bottom: 6pt;
+}
+
+/* ครุฑบันทึกข้อความ: ขนาดสูง 1.5 ซม. ชิดขอบซ้าย 3 ซม. ห่างจากขอบกระดาษด้านบนประมาณ 1.5 ซม. */
+.memo-header .memo-crest-box {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 1.5cm;
+  display: flex;
+  align-items: flex-start;
+}
+
+.memo-header .memo-crest-box img {
+  height: 1.5cm !important;
+  width: auto;
+  display: block;
+}
+
+/* คำว่า "บันทึกข้อความ": ขนาด 29 pt ตัวหนา ค่าแน่นอน (Exactly) 35 pt กึ่งกลางหน้ากระดาษ */
+.memo-header .memo-title {
+  font-size: 29pt !important;
+  font-weight: 700;
+  line-height: 35pt !important; /* ค่าแน่นอน (Exactly) ๓๕ pt ตามระเบียบ */
+  margin: 0;
+  padding: 0;
+  text-align: center;
+  transform: translateX(var(--center-fix));
+  letter-spacing: 0.02em;
+}
+
+/* หัวข้อบันทึกข้อความ: ขนาด 20 pt ตัวหนา ตาม in01.pdf */
+.doc-memo .field-label {
+  font-size: 20pt !important;
+  font-weight: 700;
+  margin-right: 6pt;
+  white-space: nowrap;
+}
+
+/* ข้อความต่อจากหัวข้อ: ขนาด 16 pt ตัวปกติ (อนุญาตให้ override ขนาดได้เพื่อป้องกันข้อความยาวตกบรรทัด) */
+.doc-memo .field-val {
+  font-size: 16pt;
+  font-weight: 400;
+}
+
+/* โครงสร้างแถวและเส้นประตาม in01.pdf */
+.doc-memo .field-dept-row {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+  margin-bottom: 5pt;
+  white-space: nowrap;
+}
+
+.doc-memo .field-dept-row .field-underline-box {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  overflow: visible;
+}
+
+.doc-memo .field-dept-row .field-val {
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.doc-memo .field-no-date-row {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+  margin-bottom: 5pt;
+}
+
+.doc-memo .field-no-date-row .no-group {
+  display: flex;
+  align-items: baseline;
+  width: 50%;
+  flex: 0 0 50%;
+  box-sizing: border-box;
+  padding-right: 10px;
+}
+
+.doc-memo .field-no-date-row .date-group {
+  display: flex;
+  align-items: baseline;
+  width: 50%;
+  flex: 0 0 50%;
+  box-sizing: border-box;
+}
+
+.doc-memo .field-subject-row {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+  margin-bottom: 5pt;
+}
+
+.doc-memo .field-to-row {
+  display: flex;
+  align-items: baseline;
+  width: 100%;
+  margin-bottom: 6pt;
+}
+
+.doc-memo .field-underline-box {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+}
+
+/* เมื่อเปิดเส้นประจุดไข่ปลา (in01.pdf style) */
+.doc-memo.dotted-active .field-underline-box {
+  border-bottom: 1px dotted #475569;
+  min-height: 22px;
+  padding-bottom: 1px;
+}
+
+/* หัวข้อหนังสือภายนอก: ขนาด 16 pt ตัวหนา */
+.doc-external .field-label {
+  font-size: 16pt !important;
+  font-weight: 700;
+  margin-right: 6pt;
+}
+
+.doc-external .field-val {
+  font-size: 16pt !important;
+  font-weight: 400;
+}
+
+.field-row {
+  margin-bottom: 4pt;
+  line-height: 1.2;
+}
+
+/* =========================================================
+   3. เนื้อหาเอกสาร (Body Paragraphs & Tables)
+   ========================================================= */
+.body-block {
+  margin-top: 10pt;
+  margin-bottom: 12pt;
+}
+
+/* ทุกย่อหน้าต้องร่น 2.5 ซม. และจัดพิมพ์แบบ Thai Distributed (กระจายแบบไทย หน้า-หลังตรงกัน) */
+.body-block p,
+.body-block .para {
+  margin: 0 0 6pt 0;
+  text-indent: 2.5cm;
+  text-align: justify;
+  text-justify: inter-character;
+  -webkit-text-justify: inter-character;
+  text-align-last: left;
+  line-break: strict;
+  word-break: normal;
+  overflow-wrap: break-word;
+  line-height: 1.25;
+  font-size: 16pt;
+}
+
+.body-block table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8pt 0 12pt 0;
+  font-size: 15pt;
+}
+
+.body-block table th,
+.body-block table td {
+  border: 1px solid #333333;
+  padding: 4pt 8pt;
+  text-align: left;
+}
+
+.body-block table th {
+  background-color: #f5f5f5;
+  font-weight: 700;
+  text-align: center;
+}
+
+.body-block ol,
+.body-block ul {
+  margin: 4pt 0 6pt 2.5cm;
+  padding-left: 1cm;
+}
+
+.body-block li {
+  margin-bottom: 3pt;
+  line-height: 1.25;
+  text-align: justify;
+  text-justify: inter-character;
+  -webkit-text-justify: inter-character;
+  text-align-last: left;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+/* =========================================================
+   4. ลายมือชื่อและตำแหน่ง (Signatures) ตามระเบียบสารบรรณ
+   ========================================================= */
+/* เว้น 4 Enter จากบรรทัดจบหรือคำลงท้าย (ประมาณ 2 - 2.5 ซม.) */
+.signature-block {
+  margin-top: 48pt;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* หนังสือภายใน (บันทึกข้อความ): ชื่อเต็มเริ่มต้นตรงกับแนว "วันที่" (แท็บ 8 ซม.) แต่จัดตำแหน่งให้อยู่กึ่งกลางใต้ชื่อเต็ม */
+.doc-memo .signature-block {
+  margin-left: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.doc-memo .signature-block .signer-col {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.doc-memo .signature-block .signer-col .name {
+  white-space: nowrap;
+  font-size: 16pt;
+  font-weight: 400;
+  line-height: 1.25;
+  margin-bottom: 2pt;
+}
+
+.doc-memo .signature-block .signer-col .position {
+  white-space: nowrap;
+  font-size: 16pt;
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+/* หนังสือภายนอก: ลายมือชื่ออยู่กึ่งกลางหน้ากระดาษ ตรงกับคำว่า "ขอแสดงความนับถือ" ตาม 03.pdf */
+.doc-external .signature-block {
+  text-align: center;
+  transform: translateX(var(--center-fix));
+}
+
+.doc-external .signature-block .signer-col {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.signature-block .name {
+  font-weight: 400;
+  font-size: 16pt;
+  margin-bottom: 2pt;
+  line-height: 1.25;
+}
+
+.signature-block .position {
+  font-weight: 400;
+  font-size: 16pt;
+  line-height: 1.25;
+}
+
+/* ข้อมูลท้ายกระดาษ หนังสือภายนอก */
+.footer-office-block {
+  margin-top: 2.2cm;
+  font-size: 13pt;
+  line-height: 1.2;
+  color: #222222;
+}
+
+/* ข้อความด้านล่างของหนังสือราชการ (ตามนโยบายกระทรวงมหาดไทย/อปท.) */
+.page-bottom-slogan {
+  position: absolute;
+  bottom: 0.8cm;
+  left: 0;
+  right: 0;
+  width: 100%;
+  text-align: center;
+  font-family: var(--font-family) !important;
+  font-size: 15pt;
+  font-weight: 400;
+  font-style: italic;
+  color: #1a1a1a;
+  line-height: 1.2;
+  letter-spacing: 0.5px;
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+/* =========================================================
+   5. การตัดหน้ากระดาษ A4 หลายแผ่น (Multi-page A4 Pagination)
+   ========================================================= */
+.sheets-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+.sheet-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.sheet-tag {
+  align-self: flex-start;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+  padding: 4px 12px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.print-page.sheet-page {
+  width: var(--page-width);
+  height: var(--page-height); /* 297mm strict A4 */
+  min-height: var(--page-height);
+  max-height: var(--page-height);
+  overflow: hidden;
+  box-sizing: border-box;
+  padding: var(--margin-top) var(--margin-right) var(--margin-bottom) var(--margin-left);
+  background: #ffffff;
+  position: relative;
+  display: block;
+}
+
+/* หัวเลขหน้าแผ่นที่ ๒ เป็นต้นไป ตามระเบียบสำนักนายกฯ: - ๒ - กึ่งกลางด้านบน */
+.page-number-header {
+  text-align: center;
+  font-family: var(--font-family);
+  font-size: 16pt;
+  font-weight: 400;
+  margin-top: -0.8cm;
+  margin-bottom: 0.5cm;
+  color: #000000;
+  letter-spacing: 2px;
+}
+
+/* ข้อความต่อเนื่องจากหน้าก่อนหน้า (ไม่เยื้อง 2.5 ซม.) */
+.para.para-continued {
+  text-indent: 0 !important;
+}
+
+.page-body-content {
+  display: block;
+}
+
+/* =========================================================
+   6. การพิมพ์ (Print Directives)
+   ========================================================= */
+@media screen {
+  .print-page {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    margin: 0 auto;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html,
+  body,
+  #root,
+  .app-container,
+  .app-workspace,
+  .preview-panel,
+  .preview-scroll-container,
+  .paper-wrapper,
+  .sheets-container {
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+    position: static !important;
+    display: block !important;
+    float: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .no-print,
+  .app-header,
+  .editor-panel,
+  .preview-controls,
+  .resizer-splitter,
+  .sheet-tag,
+  .margin-guide-indicator,
+  .concluding-preset-bar,
+  button {
+    display: none !important;
+  }
+
+  .sheets-container {
+    display: block !important;
+    width: 210mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+  }
+
+  .sheet-wrapper {
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .sheet-wrapper:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+
+  .print-page,
+  .print-page.sheet-page {
+    box-shadow: none !important;
+    margin: 0 !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    overflow: hidden !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    box-sizing: border-box !important;
+  }
+
+  .sheet-wrapper:last-child .print-page.sheet-page {
+    page-break-after: auto !important;
+    break-after: auto !important;
+  }
+}

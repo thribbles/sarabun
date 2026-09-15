@@ -1,0 +1,4 @@
+TH Sarabun New
+Copyright (c) 2010-2011 Software Industry Promotion Agency (Public Organization) (SIPA), Thailand.
+เผยแพร่ให้ใช้งานได้โดยไม่เสียค่าใช้จ่าย เป็นฟอนต์มาตรฐานราชการไทยตามมติคณะรัฐมนตรี
+Webfont files obtained from: https://github.com/Phonbopit/sarabun-webfont

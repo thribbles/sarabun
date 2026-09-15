@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48">
+  <defs>
+    <linearGradient id="bookCover" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="50%" stop-color="#0369a1"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <linearGradient id="pageGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#e2e8f0"/>
+      <stop offset="20%" stop-color="#ffffff"/>
+      <stop offset="80%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <linearGradient id="goldRibbon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fde047"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <filter id="bookShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Book Spine Base / Shadow -->
+  <path d="M6 38 C14 34, 22 37, 24 39 C26 37, 34 34, 42 38 L42 41 C34 37, 26 40, 24 42 C22 40, 14 37, 6 41 Z" fill="#0f172a" opacity="0.4"/>
+
+  <!-- Left Cover Outer -->
+  <path d="M5 10 C13 7, 22 10, 24 12 L24 39 C22 37, 13 34, 5 37 Z" fill="url(#bookCover)" filter="url(#bookShadow)"/>
+
+  <!-- Right Cover Outer -->
+  <path d="M43 10 C35 7, 26 10, 24 12 L24 39 C26 37, 35 34, 43 37 Z" fill="url(#bookCover)" filter="url(#bookShadow)"/>
+
+  <!-- Left Pages Stack -->
+  <path d="M7 11 C14 8, 22 11, 23.5 12.8 L23.5 37.8 C22 36, 14 33, 7 36 Z" fill="url(#pageGrad)"/>
+  <!-- Left Page Lines -->
+  <line x1="10" y1="16" x2="20" y2="17.5" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="10" y1="21" x2="20" y2="22.5" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="10" y1="26" x2="18" y2="27.5" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="10" y1="31" x2="16" y2="32.5" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/>
+
+  <!-- Right Pages Stack -->
+  <path d="M41 11 C34 8, 26 11, 24.5 12.8 L24.5 37.8 C26 36, 34 33, 41 36 Z" fill="url(#pageGrad)"/>
+  <!-- Right Page Lines -->
+  <line x1="28" y1="17.5" x2="38" y2="16" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="28" y1="22.5" x2="38" y2="21" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="28" y1="27.5" x2="36" y2="26" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/>
+  <line x1="28" y1="32.5" x2="34" y2="31" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round"/>
+
+  <!-- Book Center Spine Seam -->
+  <line x1="24" y1="12" x2="24" y2="39" stroke="#0284c7" stroke-width="1.5"/>
+
+  <!-- Golden Bookmark Ribbon Hanging Out Bottom -->
+  <path d="M22.5 13 L25.5 13 L25.5 43 L24 41 L22.5 43 Z" fill="url(#goldRibbon)"/>
+</svg>
