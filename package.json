@@ -1,0 +1,10 @@
+{
+  "name": "sarabun-root",
+  "private": true,
+  "scripts": {
+    "dev": "npm run --prefix sarabun-system dev:web",
+    "dev:web": "npm run --prefix sarabun-system dev:web",
+    "dev:api": "npm run --prefix sarabun-system dev:api",
+    "build": "npm run --prefix sarabun-system build"
+  }
+}

@@ -14,24 +14,56 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 export class DocumentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll(filter: { status?: string; department?: string; q?: string; page: number }) {
-    const pageSize = 20;
-    return this.prisma.document.findMany({
+  private formatDoc(doc: any) {
+    let parsedFields = doc.fields;
+    if (typeof doc.fields === "string") {
+      try {
+        parsedFields = JSON.parse(doc.fields);
+      } catch {
+        parsedFields = {};
+      }
+    }
+    return {
+      ...doc,
+      fields: parsedFields || {},
+      docType: doc.docType || "memo",
+    };
+  }
+
+  async findAll(filter: { status?: string; department?: string; q?: string; page: number }) {
+    const pageSize = 50;
+    const docs = await this.prisma.document.findMany({
       where: {
         status: filter.status,
         departmentId: filter.department,
-        subject: filter.q ? { contains: filter.q, mode: "insensitive" } : undefined,
+        subject: filter.q ? { contains: filter.q } : undefined,
       },
       skip: (filter.page - 1) * pageSize,
       take: pageSize,
-      orderBy: { createdAt: "desc" },
+      orderBy: { updatedAt: "desc" },
     });
+    return docs.map((d) => this.formatDoc(d));
   }
 
   async create(dto: CreateDocumentDto) {
-    const doc = await this.prisma.document.create({ data: dto as any });
+    const fieldsStr =
+      typeof dto.fields === "object" ? JSON.stringify(dto.fields) : dto.fields;
+
+    const doc = await this.prisma.document.create({
+      data: {
+        subject: dto.subject,
+        docType: dto.docType || "memo",
+        documentNo: dto.documentNo,
+        toPerson: dto.toPerson,
+        reference: dto.reference,
+        status: dto.status || "DRAFT",
+        departmentId: dto.departmentId,
+        createdById: dto.createdById,
+        fields: fieldsStr,
+      },
+    });
     await this.logAction(doc.id, "CREATE");
-    return doc;
+    return this.formatDoc(doc);
   }
 
   async findOne(id: string) {
@@ -40,13 +72,28 @@ export class DocumentsService {
       include: { contents: true, signers: true, attachments: true },
     });
     if (!doc) throw new NotFoundException("Document not found");
-    return doc;
+    return this.formatDoc(doc);
   }
 
   async update(id: string, dto: UpdateDocumentDto) {
-    const doc = await this.prisma.document.update({ where: { id }, data: dto as any });
+    const dataToUpdate: any = {};
+    if (dto.subject !== undefined) dataToUpdate.subject = dto.subject;
+    if (dto.docType !== undefined) dataToUpdate.docType = dto.docType;
+    if (dto.documentNo !== undefined) dataToUpdate.documentNo = dto.documentNo;
+    if (dto.toPerson !== undefined) dataToUpdate.toPerson = dto.toPerson;
+    if (dto.reference !== undefined) dataToUpdate.reference = dto.reference;
+    if (dto.status !== undefined) dataToUpdate.status = dto.status;
+    if (dto.fields !== undefined) {
+      dataToUpdate.fields =
+        typeof dto.fields === "object" ? JSON.stringify(dto.fields) : dto.fields;
+    }
+
+    const doc = await this.prisma.document.update({
+      where: { id },
+      data: dataToUpdate,
+    });
     await this.logAction(id, "UPDATE");
-    return doc;
+    return this.formatDoc(doc);
   }
 
   async remove(id: string) {
@@ -65,7 +112,7 @@ export class DocumentsService {
       data: { status: target },
     });
     await this.logAction(id, target === "APPROVED" ? "APPROVE" : "UPDATE");
-    return updated;
+    return this.formatDoc(updated);
   }
 
   async logAction(documentId: string, action: string) {
@@ -75,8 +122,6 @@ export class DocumentsService {
   }
 
   async renderPdf(id: string) {
-    // TODO: ส่ง HTML (จาก PrintPage component render ฝั่ง server) เข้า Chromium headless
-    // แล้ว stream กลับเป็น PDF — ดู architecture.md ข้อ 2 และ 5
     await this.logAction(id, "EXPORT_PDF");
     return { message: "PDF generation not yet implemented — wire up Chromium headless here" };
   }

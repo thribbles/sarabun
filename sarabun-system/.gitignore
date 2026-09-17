@@ -28,3 +28,9 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 .idea/
+
+# Databases
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3

@@ -1,10 +1,12 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   SavedDocument,
   loadDocuments,
   deleteDocument,
   docTypeLabel,
+  docStatusMeta,
   formatThaiDate,
+  syncDocumentsFromApi,
 } from "../../src/documentStore";
 import { DocumentTypeCode } from "../print/PrintPage";
 
@@ -24,10 +26,31 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
   const [docs, setDocs] = useState<SavedDocument[]>(() => loadDocuments());
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"all" | DocumentTypeCode>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState<boolean | null>(null);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
   const reload = useCallback(() => setDocs(loadDocuments()), []);
+
+  // ทำการซิงค์ข้อมูลกับ Backend API (NestJS + SQLite)
+  const handleSync = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const res = await syncDocumentsFromApi();
+      setDocs(res.docs);
+      setIsOnline(res.isOnline);
+    } catch {
+      setIsOnline(false);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    handleSync();
+  }, [handleSync]);
 
   const handleDelete = (id: string) => {
     deleteDocument(id);
@@ -37,15 +60,16 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
 
   const filtered = docs.filter((d) => {
     const matchType = filterType === "all" || d.docType === filterType;
+    const matchStatus = filterStatus === "all" || (d.status || "DRAFT") === filterStatus;
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
-      (d.fields.subject || "").toLowerCase().includes(q) ||
-      (d.fields.documentNo || "").toLowerCase().includes(q) ||
-      (d.fields.to || "").toLowerCase().includes(q) ||
-      (d.fields.department || "").toLowerCase().includes(q) ||
+      (d.fields?.subject || "").toLowerCase().includes(q) ||
+      (d.fields?.documentNo || "").toLowerCase().includes(q) ||
+      (d.fields?.to || "").toLowerCase().includes(q) ||
+      (d.fields?.department || "").toLowerCase().includes(q) ||
       (d.createdBy || "").toLowerCase().includes(q);
-    return matchType && matchSearch;
+    return matchType && matchStatus && matchSearch;
   });
 
   return (
@@ -53,9 +77,66 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
       {/* ─── Page Header ─── */}
       <div className="doclist-header">
         <div className="doclist-header-left">
-          <h1 className="doclist-title">📂 รายการหนังสือราชการ</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+            <h1 className="doclist-title" style={{ margin: 0 }}>📂 รายการหนังสือราชการ</h1>
+            {/* Status Connection Indicator */}
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "12px",
+                fontWeight: 600,
+                padding: "3px 10px",
+                borderRadius: "20px",
+                backgroundColor: isOnline ? "#ecfdf5" : "#fefce8",
+                color: isOnline ? "#047857" : "#b45309",
+                border: isOnline ? "1px solid #a7f3d0" : "1px solid #fde68a",
+              }}
+              title={
+                isOnline
+                  ? "เชื่อมต่อฐานข้อมูล SQLite Backend เรียบร้อยแล้ว (พอร์ต 3001)"
+                  : "ระบบกำลังทำงานในโหมด Offline LocalStorage บันทึกในเบราว์เซอร์"
+              }
+            >
+              <span
+                style={{
+                  width: "7px",
+                  height: "7px",
+                  borderRadius: "50%",
+                  backgroundColor: isOnline ? "#10b981" : "#f59e0b",
+                  display: "inline-block",
+                }}
+              />
+              {isOnline ? "ฐานข้อมูล SQLite ออนไลน์" : "โหมดออฟไลน์ (เบราว์เซอร์)"}
+            </span>
+
+            <button
+              type="button"
+              onClick={handleSync}
+              disabled={isSyncing}
+              style={{
+                background: "transparent",
+                border: "1px solid #cbd5e1",
+                borderRadius: "6px",
+                padding: "2px 8px",
+                fontSize: "12px",
+                cursor: isSyncing ? "not-allowed" : "pointer",
+                color: "#475569",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
+              title="กดเพื่อรีเฟรชและซิงค์ข้อมูลกับฐานข้อมูลล่าสุด"
+            >
+              <span style={{ display: "inline-block", animation: isSyncing ? "spin 1s linear infinite" : "none" }}>
+                🔄
+              </span>
+              {isSyncing ? "กำลังซิงค์..." : "ซิงค์ข้อมูล"}
+            </button>
+          </div>
           <span className="doclist-count">
-            {filtered.length} รายการ{filtered.length !== docs.length ? ` (จาก ${docs.length})` : ""}
+            {filtered.length} รายการ{filtered.length !== docs.length ? ` (จากทั้งหมด ${docs.length})` : ""}
           </span>
         </div>
         <div className="doclist-header-actions">
@@ -93,6 +174,28 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
         </div>
 
         <div className="doclist-toolbar-right">
+          {/* สถานะเอกสาร */}
+          <div className="doclist-filter-tabs">
+            {[
+              { id: "all", label: "ทุกสถานะ" },
+              { id: "DRAFT", label: "ร่าง" },
+              { id: "REVIEW", label: "รอตรวจ" },
+              { id: "APPROVED", label: "อนุมัติ" },
+              { id: "PRINTED", label: "พิมพ์แล้ว" },
+            ].map((st) => (
+              <button
+                key={st.id}
+                type="button"
+                className={`doclist-filter-tab ${filterStatus === st.id ? "active" : ""}`}
+                onClick={() => setFilterStatus(st.id)}
+                style={{ fontSize: "12px", padding: "4px 8px" }}
+              >
+                {st.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ประเภทเอกสาร */}
           <div className="doclist-filter-tabs">
             {(["all", "memo", "external"] as const).map((t) => (
               <button
@@ -137,7 +240,7 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
           <div className="doclist-empty-sub">
             {docs.length === 0
               ? "กดปุ่ม \"+ หนังสือภายใน\" หรือ \"+ หนังสือภายนอก\" เพื่อเริ่มร่างหนังสือ"
-              : "ลองเปลี่ยนคำค้นหาหรือตัวกรองประเภท"}
+              : "ลองเปลี่ยนคำค้นหาหรือตัวกรองประเภท/สถานะ"}
           </div>
           {docs.length === 0 && (
             <div className="doclist-empty-actions">
@@ -158,113 +261,132 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
           <table className="doclist-table">
             <thead>
               <tr>
-                <th style={{ width: "50px", textAlign: "center" }}>ลำดับ</th>
-                <th style={{ width: "115px", textAlign: "center" }}>ประเภท</th>
-                <th style={{ width: "140px" }}>เลขที่หนังสือ</th>
+                <th style={{ width: "45px", textAlign: "center" }}>ลำดับ</th>
+                <th style={{ width: "105px", textAlign: "center" }}>ประเภท</th>
+                <th style={{ width: "95px", textAlign: "center" }}>สถานะ</th>
+                <th style={{ width: "135px" }}>เลขที่หนังสือ</th>
                 <th>เรื่อง / รายละเอียด</th>
-                <th style={{ width: "125px" }}>วันที่หนังสือ</th>
-                <th style={{ width: "145px" }}>ผู้จัดทำ / ปรับปรุง</th>
+                <th style={{ width: "120px" }}>วันที่หนังสือ</th>
+                <th style={{ width: "140px" }}>ผู้จัดทำ / ปรับปรุง</th>
                 <th style={{ width: "215px", textAlign: "center" }}>การจัดการ</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((doc, idx) => (
-                <React.Fragment key={doc.id}>
-                  <tr className="doclist-row">
-                    <td style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "12.5px" }}>
-                      {idx + 1}
-                    </td>
-                    <td style={{ textAlign: "center" }}>
-                      <span className={`doccard-type-badge ${doc.docType === "memo" ? "badge-memo" : "badge-external"}`}>
-                        {doc.docType === "memo" ? "📄 ภายใน" : "🏛️ ภายนอก"}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="doclist-cell-docno">{doc.fields.documentNo || "—"}</span>
-                    </td>
-                    <td>
-                      <div className="doclist-cell-subject-wrap">
-                        <button
-                          type="button"
-                          className="doclist-cell-subject-btn"
-                          onClick={() => onViewDoc(doc)}
-                          title="คลิกเพื่อดูตัวอย่างและพิมพ์"
+              {filtered.map((doc, idx) => {
+                const statusMeta = docStatusMeta(doc.status);
+                return (
+                  <React.Fragment key={doc.id}>
+                    <tr className="doclist-row">
+                      <td style={{ textAlign: "center", color: "var(--text-muted)", fontSize: "12.5px" }}>
+                        {idx + 1}
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <span className={`doccard-type-badge ${doc.docType === "memo" ? "badge-memo" : "badge-external"}`}>
+                          {doc.docType === "memo" ? "📄 ภายใน" : "🏛️ ภายนอก"}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            padding: "2px 8px",
+                            borderRadius: "12px",
+                            backgroundColor: statusMeta.bg,
+                            color: statusMeta.color,
+                            display: "inline-block",
+                          }}
                         >
-                          {doc.fields.subject || <span className="doccard-no-subject">(ไม่มีเรื่อง)</span>}
-                        </button>
-                        <div className="doclist-cell-submeta">
-                          {doc.docType === "memo" ? (
-                            <span>🏢 {doc.fields.department || "—"}</span>
-                          ) : (
-                            <span>🏛️ {doc.fields.agencyTop || "—"}</span>
-                          )}
-                          {doc.fields.to && <span className="doclist-cell-to">· 👤 {doc.fields.to}</span>}
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className="doclist-cell-date">{doc.fields.date || "—"}</span>
-                    </td>
-                    <td>
-                      <div className="doclist-cell-author-wrap">
-                        <span className="doclist-cell-author">{doc.createdBy || "เจ้าหน้าที่"}</span>
-                        <span className="doclist-cell-updated">{formatThaiDate(doc.updatedAt)}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="doclist-row-actions">
-                        <button
-                          type="button"
-                          className="doccard-btn doccard-btn-view"
-                          onClick={() => onViewDoc(doc)}
-                          title="ดูพรีวิวและพิมพ์"
-                        >
-                          🖨️ ดู/พิมพ์
-                        </button>
-                        <button
-                          type="button"
-                          className="doccard-btn doccard-btn-edit"
-                          onClick={() => onEditDoc(doc)}
-                          title="แก้ไขเนื้อหา"
-                        >
-                          ✏️ แก้ไข
-                        </button>
-                        <button
-                          type="button"
-                          className="doccard-btn doccard-btn-delete"
-                          onClick={() => setDeleteConfirm(doc.id)}
-                          title="ลบเอกสาร"
-                        >
-                          🗑️ ลบ
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                  {deleteConfirm === doc.id && (
-                    <tr className="doclist-delete-confirm-row">
-                      <td colSpan={7}>
-                        <div className="doccard-delete-confirm">
-                          <span>⚠️ ยืนยันการลบหนังสือเรื่อง "{doc.fields.subject || docTypeLabel(doc.docType)}"?</span>
+                          {statusMeta.label}
+                        </span>
+                      </td>
+                      <td>
+                        <span className="doclist-cell-docno">{doc.fields?.documentNo || "—"}</span>
+                      </td>
+                      <td>
+                        <div className="doclist-cell-subject-wrap">
                           <button
                             type="button"
-                            className="doccard-btn doccard-btn-confirm-yes"
-                            onClick={() => handleDelete(doc.id)}
+                            className="doclist-cell-subject-btn"
+                            onClick={() => onViewDoc(doc)}
+                            title="คลิกเพื่อดูตัวอย่างและพิมพ์"
                           >
-                            ลบเอกสาร
+                            {doc.fields?.subject || <span className="doccard-no-subject">(ไม่มีเรื่อง)</span>}
+                          </button>
+                          <div className="doclist-cell-submeta">
+                            {doc.docType === "memo" ? (
+                              <span>🏢 {doc.fields?.department || "—"}</span>
+                            ) : (
+                              <span>🏛️ {doc.fields?.agencyTop || "—"}</span>
+                            )}
+                            {doc.fields?.to && <span className="doclist-cell-to">· 👤 {doc.fields.to}</span>}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="doclist-cell-date">{doc.fields?.date || "—"}</span>
+                      </td>
+                      <td>
+                        <div className="doclist-cell-author-wrap">
+                          <span className="doclist-cell-author">{doc.createdBy || "เจ้าหน้าที่"}</span>
+                          <span className="doclist-cell-updated">{formatThaiDate(doc.updatedAt)}</span>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="doclist-row-actions">
+                          <button
+                            type="button"
+                            className="doccard-btn doccard-btn-view"
+                            onClick={() => onViewDoc(doc)}
+                            title="ดูพรีวิวและพิมพ์"
+                          >
+                            🖨️ ดู/พิมพ์
                           </button>
                           <button
                             type="button"
-                            className="doccard-btn doccard-btn-confirm-no"
-                            onClick={() => setDeleteConfirm(null)}
+                            className="doccard-btn doccard-btn-edit"
+                            onClick={() => onEditDoc(doc)}
+                            title="แก้ไขเนื้อหา"
                           >
-                            ยกเลิก
+                            ✏️ แก้ไข
+                          </button>
+                          <button
+                            type="button"
+                            className="doccard-btn doccard-btn-delete"
+                            onClick={() => setDeleteConfirm(doc.id)}
+                            title="ลบเอกสาร"
+                          >
+                            🗑️ ลบ
                           </button>
                         </div>
                       </td>
                     </tr>
-                  )}
-                </React.Fragment>
-              ))}
+                    {deleteConfirm === doc.id && (
+                      <tr className="doclist-delete-confirm-row">
+                        <td colSpan={8}>
+                          <div className="doccard-delete-confirm">
+                            <span>⚠️ ยืนยันการลบหนังสือเรื่อง "{doc.fields?.subject || docTypeLabel(doc.docType)}"?</span>
+                            <button
+                              type="button"
+                              className="doccard-btn doccard-btn-confirm-yes"
+                              onClick={() => handleDelete(doc.id)}
+                            >
+                              ยืนยันลบ
+                            </button>
+                            <button
+                              type="button"
+                              className="doccard-btn doccard-btn-confirm-no"
+                              onClick={() => setDeleteConfirm(null)}
+                            >
+                              ยกเลิก
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -273,99 +395,105 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
       {/* ─── Grid View (Card Format) ─── */}
       {filtered.length > 0 && viewMode === "grid" && (
         <div className="doclist-grid">
-          {filtered.map((doc) => (
-            <div key={doc.id} className="doclist-card">
-              {/* Type Badge */}
-              <div className="doccard-top">
-                <span className={`doccard-type-badge ${doc.docType === "memo" ? "badge-memo" : "badge-external"}`}>
-                  {doc.docType === "memo" ? "📄 ภายใน" : "🏛️ ภายนอก"}
-                </span>
-                <span className="doccard-docno">{doc.fields.documentNo || "—"}</span>
-                <span className="doccard-date-chip">{doc.fields.date || "—"}</span>
-              </div>
-
-              {/* Subject */}
-              <div className="doccard-subject" title={doc.fields.subject || ""}>
-                {doc.fields.subject || <span className="doccard-no-subject">(ไม่มีเรื่อง)</span>}
-              </div>
-
-              {/* Meta row */}
-              <div className="doccard-meta">
-                {doc.docType === "memo" ? (
-                  <span className="doccard-meta-item" title={doc.fields.department}>
-                    🏢 {doc.fields.department || "—"}
-                  </span>
-                ) : (
-                  <span className="doccard-meta-item" title={doc.fields.agencyTop}>
-                    🏛️ {doc.fields.agencyTop || "—"}
-                  </span>
-                )}
-                {doc.fields.to && (
-                  <span className="doccard-meta-item doccard-to" title={doc.fields.to}>
-                    👤 {doc.fields.to}
-                  </span>
-                )}
-              </div>
-
-              {/* Timestamps */}
-              <div className="doccard-timestamps">
-                <span>สร้าง: {formatThaiDate(doc.createdAt)}</span>
-                {doc.createdBy && <span className="doccard-creator"> · {doc.createdBy}</span>}
-                {doc.updatedAt !== doc.createdAt && (
-                  <span> · แก้ไข: {formatThaiDate(doc.updatedAt)}</span>
-                )}
-              </div>
-
-              {/* Action buttons */}
-              <div className="doccard-actions">
-                <button
-                  type="button"
-                  className="doccard-btn doccard-btn-view"
-                  onClick={() => onViewDoc(doc)}
-                  title="ดูพรีวิวและพิมพ์"
-                >
-                  🖨️ ดู / พิมพ์
-                </button>
-                <button
-                  type="button"
-                  className="doccard-btn doccard-btn-edit"
-                  onClick={() => onEditDoc(doc)}
-                  title="แก้ไขเนื้อหา"
-                >
-                  ✏️ แก้ไข
-                </button>
-                <button
-                  type="button"
-                  className="doccard-btn doccard-btn-delete"
-                  onClick={() => setDeleteConfirm(doc.id)}
-                  title="ลบเอกสาร"
-                >
-                  🗑️ ลบ
-                </button>
-              </div>
-
-              {/* Inline delete confirm */}
-              {deleteConfirm === doc.id && (
-                <div className="doccard-delete-confirm">
-                  <span>ยืนยันลบ "{doc.fields.subject || docTypeLabel(doc.docType)}"?</span>
-                  <button
-                    type="button"
-                    className="doccard-btn doccard-btn-confirm-yes"
-                    onClick={() => handleDelete(doc.id)}
-                  >
-                    ลบเลย
-                  </button>
-                  <button
-                    type="button"
-                    className="doccard-btn doccard-btn-confirm-no"
-                    onClick={() => setDeleteConfirm(null)}
-                  >
-                    ยกเลิก
-                  </button>
+          {filtered.map((doc) => {
+            const statusMeta = docStatusMeta(doc.status);
+            return (
+              <div key={doc.id} className="doccard">
+                <div className="doccard-header">
+                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+                    <span className={`doccard-type-badge ${doc.docType === "memo" ? "badge-memo" : "badge-external"}`}>
+                      {doc.docType === "memo" ? "📄 บันทึกข้อความ" : "🏛️ หนังสือภายนอก"}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        padding: "2px 8px",
+                        borderRadius: "12px",
+                        backgroundColor: statusMeta.bg,
+                        color: statusMeta.color,
+                      }}
+                    >
+                      {statusMeta.label}
+                    </span>
+                  </div>
+                  <span className="doccard-date">{formatThaiDate(doc.updatedAt)}</span>
                 </div>
-              )}
-            </div>
-          ))}
+
+                <div className="doccard-body">
+                  <div className="doccard-docno">เลขที่: {doc.fields?.documentNo || "—"}</div>
+                  <h3 className="doccard-subject" title={doc.fields?.subject || "ไม่มีเรื่อง"}>
+                    {doc.fields?.subject || <span className="doccard-no-subject">(ไม่มีเรื่อง)</span>}
+                  </h3>
+                  <div className="doccard-meta-line">
+                    <span className="doccard-meta-label">เรียน:</span>
+                    <span className="doccard-meta-val">{doc.fields?.to || "—"}</span>
+                  </div>
+                  <div className="doccard-meta-line">
+                    <span className="doccard-meta-label">สังกัด:</span>
+                    <span className="doccard-meta-val">
+                      {doc.docType === "memo"
+                        ? doc.fields?.department || "—"
+                        : doc.fields?.agencyTop || "—"}
+                    </span>
+                  </div>
+                  {doc.createdBy && (
+                    <div className="doccard-meta-line">
+                      <span className="doccard-meta-label">ผู้จัดทำ:</span>
+                      <span className="doccard-meta-val">{doc.createdBy}</span>
+                    </div>
+                  )}
+                </div>
+
+                {deleteConfirm === doc.id ? (
+                  <div className="doccard-delete-confirm">
+                    <span>ลบเอกสารนี้?</span>
+                    <button
+                      type="button"
+                      className="doccard-btn doccard-btn-confirm-yes"
+                      onClick={() => handleDelete(doc.id)}
+                    >
+                      ยืนยัน
+                    </button>
+                    <button
+                      type="button"
+                      className="doccard-btn doccard-btn-confirm-no"
+                      onClick={() => setDeleteConfirm(null)}
+                    >
+                      ยกเลิก
+                    </button>
+                  </div>
+                ) : (
+                  <div className="doccard-actions">
+                    <button
+                      type="button"
+                      className="doccard-btn doccard-btn-view"
+                      onClick={() => onViewDoc(doc)}
+                      title="ดูพรีวิวและพิมพ์"
+                    >
+                      🖨️ ดู/พิมพ์
+                    </button>
+                    <button
+                      type="button"
+                      className="doccard-btn doccard-btn-edit"
+                      onClick={() => onEditDoc(doc)}
+                      title="แก้ไขเนื้อหา"
+                    >
+                      ✏️ แก้ไข
+                    </button>
+                    <button
+                      type="button"
+                      className="doccard-btn doccard-btn-delete"
+                      onClick={() => setDeleteConfirm(doc.id)}
+                      title="ลบเอกสาร"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

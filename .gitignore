@@ -39,3 +39,9 @@ Thumbs.db
 # Temporary media & cache
 .cache/
 .parcel-cache/
+
+# Databases
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3

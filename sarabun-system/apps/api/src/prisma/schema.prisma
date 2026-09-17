@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -59,12 +59,12 @@ model DocumentTemplate {
   name           String
   version        Int      @default(1)
   pageSize       String   @default("A4")
-  margins        Json     // {top,left,right,bottom}
-  font           Json     // {family,size,lineHeight}
-  headerConfig   Json?
-  footerConfig   Json?
-  fieldsSchema   Json     // ตามข้อ 3 ใน architecture.md
-  layoutRules    Json     // ตามข้อ 2 ใน architecture.md
+  margins        String   // JSON string {top,left,right,bottom}
+  font           String   // JSON string {family,size,lineHeight}
+  headerConfig   String?
+  footerConfig   String?
+  fieldsSchema   String   // JSON string
+  layoutRules    String   // JSON string
   isActive       Boolean  @default(true)
   createdById    String?
   createdBy      User?    @relation(fields: [createdById], references: [id])
@@ -77,8 +77,9 @@ model DocumentTemplate {
 model Document {
   id             String   @id @default(uuid())
   documentNo     String?
-  documentTypeId Int
-  documentType   DocumentType @relation(fields: [documentTypeId], references: [id])
+  docType        String?  @default("memo") // "memo" | "external"
+  documentTypeId Int?
+  documentType   DocumentType? @relation(fields: [documentTypeId], references: [id])
   templateId     String?
   template       DocumentTemplate? @relation(fields: [templateId], references: [id])
   departmentId   String?
@@ -87,6 +88,7 @@ model Document {
   toPerson       String?
   reference      String?
   status         String   @default("DRAFT") // DRAFT/REVIEW/APPROVED/PRINTED/CANCELLED
+  fields         String?  // JSON string เก็บข้อมูลฟิลด์ทั้งหมดของหนังสือ (PrintFields)
   createdById    String?
   createdBy      User?    @relation(fields: [createdById], references: [id])
   createdAt      DateTime @default(now())
@@ -103,7 +105,7 @@ model DocumentContent {
   id         String   @id @default(uuid())
   documentId String
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  content    Json     // TipTap JSON
+  content    String   // JSON string
   version    Int
   createdAt  DateTime @default(now())
 }
@@ -125,7 +127,7 @@ model DocumentAttachment {
   fileName     String
   fileUrl      String
   mimeType     String
-  sizeBytes    BigInt?
+  sizeBytes    Int?
   uploadedById String?
   uploadedAt   DateTime @default(now())
 }
@@ -142,7 +144,7 @@ model DocumentRevision {
 }
 
 model DocumentLog {
-  id         BigInt   @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   documentId String?
   document   Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
   userId     String?

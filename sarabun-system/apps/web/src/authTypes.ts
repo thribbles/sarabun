@@ -18,6 +18,18 @@ export interface UserMember {
  */
 export const DEFAULT_MEMBERS: UserMember[] = [
   {
+    id: "mem-nayok",
+    username: "nayok",
+    password: "123",
+    fullName: "นาย เอดาจิม่า เฮฮาจิ",
+    position: "นายกองค์การบริหารส่วนจังหวัดปราจีนบุรี",
+    division: "องค์การบริหารส่วนจังหวัดปราจีนบุรี",
+    section: "",
+    phone: "โทร. ๐-๓๗๒๑-๑๕๗๙",
+    docPrefix: "ปจ ๕๑๐๐๑/",
+    useShortOrgName: true,
+  },
+  {
     id: "mem-admin",
     username: "admin",
     password: "123",
@@ -127,6 +139,11 @@ export function loadAllMembers(): UserMember[] {
           return {
             ...item,
             fullName: demoMatch.fullName,
+            position: demoMatch.position,
+            division: demoMatch.division,
+            section: demoMatch.section,
+            phone: demoMatch.phone,
+            docPrefix: demoMatch.docPrefix,
             useShortOrgName: true,
           };
         }
@@ -135,8 +152,11 @@ export function loadAllMembers(): UserMember[] {
 
       // เติม Demo user ที่อาจจะยังไม่มีใน storage
       for (const d of DEFAULT_MEMBERS) {
-        if (!updated.some((u) => u.username.toLowerCase() === d.username.toLowerCase())) {
+        const foundIdx = updated.findIndex((u) => u.username.toLowerCase() === d.username.toLowerCase());
+        if (foundIdx === -1) {
           updated.push(d);
+        } else {
+          updated[foundIdx] = { ...updated[foundIdx], ...d };
         }
       }
 
@@ -167,7 +187,7 @@ export function loadCurrentMember(): UserMember | null {
   try {
     const raw = localStorage.getItem(STORAGE_CURRENT_USER_KEY);
     if (!raw) {
-      const defaultUser = DEFAULT_MEMBERS[1]; // pasadu
+      const defaultUser = DEFAULT_MEMBERS[0]; // nayok (เอดาจิม่า เฮฮาจิ)
       saveCurrentMember(defaultUser);
       return defaultUser;
     }
@@ -177,12 +197,17 @@ export function loadCurrentMember(): UserMember | null {
     );
     if (demoMatch) {
       parsed.fullName = demoMatch.fullName;
+      parsed.position = demoMatch.position;
+      parsed.division = demoMatch.division;
+      parsed.section = demoMatch.section;
+      parsed.phone = demoMatch.phone;
+      parsed.docPrefix = demoMatch.docPrefix;
       parsed.useShortOrgName = true;
       saveCurrentMember(parsed);
     }
     return parsed;
   } catch (e) {
-    return DEFAULT_MEMBERS[1];
+    return DEFAULT_MEMBERS[0];
   }
 }
 

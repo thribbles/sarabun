@@ -10,7 +10,7 @@ import {
   convertToThaiNumerals,
   DEFAULT_BOTTOM_SLOGAN,
 } from "./sampleData";
-import { insertContentBeforeConcluding, ensureConcludingAtEnd } from "../components/print/paginationHelper";
+import { insertContentBeforeConcluding, ensureConcludingAtEnd, getTodayThaiOfficialDate } from "../components/print/paginationHelper";
 import {
   UserMember,
   loadCurrentMember,
@@ -24,6 +24,7 @@ import {
   createDocument,
   updateDocument,
 } from "./documentStore";
+import { checkApiHealth } from "./api/documentsApi";
 
 export const App: React.FC = () => {
   // ─── View routing: "list" = หน้าหลัก, "editor" = หน้าร่าง/แก้ไข, "view" = ดู+พิมพ์
@@ -45,6 +46,20 @@ export const App: React.FC = () => {
   const [showMarginGuide, setShowMarginGuide] = useState<boolean>(false);
   const [showDottedLines, setShowDottedLines] = useState<boolean>(true);
   const [saveStatus, setSaveStatus] = useState<string>("บันทึกร่างแล้ว");
+  const [docStatus, setDocStatus] = useState<string>("DRAFT");
+  const [isApiOnline, setIsApiOnline] = useState<boolean | null>(null);
+
+  // ตรวจสอบสถานะการเชื่อมต่อ Backend API (NestJS + SQLite)
+  useEffect(() => {
+    const checkStatus = () => {
+      checkApiHealth()
+        .then((online) => setIsApiOnline(online))
+        .catch(() => setIsApiOnline(false));
+    };
+    checkStatus();
+    const interval = setInterval(checkStatus, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   // โหลดข้อมูลล่าสุดจาก localStorage เมื่อเริ่มต้น
   useEffect(() => {
@@ -105,10 +120,23 @@ export const App: React.FC = () => {
     const user = loadCurrentMember();
     if (user) {
       setCurrentUser(user);
+      setFields((prev) => {
+        const isDefaultSigner =
+          !prev.signerName ||
+          prev.signerName === "(นาย เอดาจิม่า เฮฮาจิ)" ||
+          prev.signerName === "(นายกฤษฎิ์ กษมพันธุ์)" ||
+          prev.signerName === "(นายสมศักดิ์ รักชาติ)" ||
+          prev.signerName === "(นายพิพัฒน์ ชัยชนะ)";
+        return {
+          ...prev,
+          signerName: isDefaultSigner ? `(${user.fullName})` : prev.signerName,
+          signerPosition: isDefaultSigner ? user.position : prev.signerPosition,
+        };
+      });
     }
   }, []);
 
-  // เมื่อเข้าสู่ระบบ / สลับผู้ใช้: ผูกข้อมูลกองและฝ่ายเข้ากับหัวหนังสือราชการอัตโนมัติ (แก้ไขทีหลังได้เสมอ)
+  // เมื่อเข้าสู่ระบบ / สลับผู้ใช้: ผูกข้อมูลกอง ฝ่าย ลายเซ็น และวันที่ เข้ากับหนังสือราชการอัตโนมัติ
   const handleLoginUser = (user: UserMember) => {
     setCurrentUser(user);
     saveCurrentMember(user);
@@ -117,6 +145,9 @@ export const App: React.FC = () => {
       const next: PrintFields = {
         ...prev,
         department: deptStr,
+        signerName: `(${user.fullName})`,
+        signerPosition: user.position,
+        date: prev.date || getTodayThaiOfficialDate(),
       };
       if (user.docPrefix && (!prev.documentNo || prev.documentNo.startsWith("ปจ "))) {
         next.documentNo = user.docPrefix;
@@ -140,6 +171,8 @@ export const App: React.FC = () => {
       return {
         ...prev,
         department: deptStr,
+        signerName: `(${user.fullName})`,
+        signerPosition: user.position,
         documentNo: user.docPrefix || prev.documentNo,
       };
     });
@@ -220,20 +253,43 @@ export const App: React.FC = () => {
   // โหลดแม่แบบ in01.pdf
   const loadIn01Template = () => {
     setDocType("memo");
-    setFields({ ...TEMPLATE_IN01_MEMO });
+    const tpl: PrintFields = {
+      ...TEMPLATE_IN01_MEMO,
+      date: getTodayThaiOfficialDate(),
+    };
+    if (currentUser) {
+      tpl.department = buildDepartmentString(currentUser);
+      if (currentUser.docPrefix) tpl.documentNo = currentUser.docPrefix;
+      tpl.signerName = `(${currentUser.fullName})`;
+      tpl.signerPosition = currentUser.position;
+    }
+    setFields(tpl);
     setShowDottedLines(true);
   };
 
   // โหลดตัวอย่าง อบจ. exam01.pdf
   const loadExam01Sample = () => {
     setDocType("memo");
-    setFields({ ...SAMPLE_MEMO_EXAM01 });
+    setFields({
+      ...SAMPLE_MEMO_EXAM01,
+      date: getTodayThaiOfficialDate(),
+    });
   };
 
   // โหลดตัวอย่างหนังสือภายนอก
   const loadExternalSample = () => {
     setDocType("external");
-    setFields({ ...SAMPLE_EXTERNAL });
+    const tpl: PrintFields = {
+      ...SAMPLE_EXTERNAL,
+      date: getTodayThaiOfficialDate(),
+    };
+    if (currentUser) {
+      tpl.signerName = `(${currentUser.fullName})`;
+      tpl.signerPosition = currentUser.position;
+      const sec = currentUser.section ? `\n${currentUser.section.startsWith("ฝ่าย") ? currentUser.section : `ฝ่าย${currentUser.section}`}` : "";
+      tpl.footerOffice = `${currentUser.division}${sec}\n${currentUser.phone}\nwww.prachinpao.go.th`;
+    }
+    setFields(tpl);
   };
 
   // แปลงเลขอารบิก 0-9 ทั้งหมดเป็นเลขไทย ๐-๙
@@ -414,19 +470,21 @@ export const App: React.FC = () => {
   const handleReset = () => {
     if (confirm("คุณต้องการล้างข้อมูลเพื่อเริ่มร่างเอกสารใหม่ใช่หรือไม่?")) {
       setFields({
-        documentNo: "",
-        date: "๑๕ กันยายน ๒๕๖๙",
+        documentNo: currentUser?.docPrefix || "",
+        date: getTodayThaiOfficialDate(),
         subject: "",
         to: "",
         body: "",
-        signerName: "",
-        signerPosition: "",
-        department: "",
-        agencyTop: "",
-        agencyAddress: "",
+        signerName: currentUser ? `(${currentUser.fullName})` : "",
+        signerPosition: currentUser ? currentUser.position : "",
+        department: currentUser ? buildDepartmentString(currentUser) : "",
+        agencyTop: "องค์การบริหารส่วนจังหวัดปราจีนบุรี",
+        agencyAddress: "๙๙๙ หมู่ ๑ ตำบลไม้เค็ด อำเภอเมืองปราจีนบุรี จังหวัดปราจีนบุรี ๒๕๐๐๐",
         reference: "",
         enclosure: "",
-        footerOffice: "",
+        footerOffice: currentUser
+          ? `${currentUser.division}\n${currentUser.phone}\nwww.prachinpao.go.th`
+          : "",
       });
     }
   };
@@ -435,18 +493,23 @@ export const App: React.FC = () => {
   /** เปิดหน้าร่างเอกสารใหม่ */
   const handleCreateNew = (type: DocumentTypeCode) => {
     const tpl = type === "memo" ? { ...TEMPLATE_IN01_MEMO } : { ...SAMPLE_EXTERNAL };
-    // ถ้ามี currentUser ผูกข้อมูลสังกัดทันที
+    tpl.date = getTodayThaiOfficialDate();
+    // ถ้ามี currentUser ผูกข้อมูลสังกัดและผู้ลงนามทันที
     if (currentUser) {
       const deptStr = buildDepartmentString(currentUser);
       if (type === "memo") {
         tpl.department = deptStr;
         if (currentUser.docPrefix) tpl.documentNo = currentUser.docPrefix;
+      } else {
+        const sec = currentUser.section ? `\n${currentUser.section.startsWith("ฝ่าย") ? currentUser.section : `ฝ่าย${currentUser.section}`}` : "";
+        tpl.footerOffice = `${currentUser.division}${sec}\n${currentUser.phone}\nwww.prachinpao.go.th`;
       }
       tpl.signerName = `(${currentUser.fullName})`;
       tpl.signerPosition = currentUser.position;
     }
     setDocType(type);
     setFields(tpl);
+    setDocStatus("DRAFT");
     setEditingDocId(null);
     setAppView("editor");
   };
@@ -455,6 +518,7 @@ export const App: React.FC = () => {
   const handleEditDoc = (doc: SavedDocument) => {
     setDocType(doc.docType);
     setFields({ ...doc.fields });
+    setDocStatus(doc.status || "DRAFT");
     setEditingDocId(doc.id);
     setAppView("editor");
   };
@@ -463,6 +527,7 @@ export const App: React.FC = () => {
   const handleViewDoc = (doc: SavedDocument) => {
     setDocType(doc.docType);
     setFields({ ...doc.fields });
+    setDocStatus(doc.status || "DRAFT");
     setEditingDocId(doc.id);
     setAppView("view");
   };
@@ -470,9 +535,9 @@ export const App: React.FC = () => {
   /** บันทึกเอกสารลง store แล้วกลับหน้ารายการ */
   const handleSaveAndGoList = () => {
     if (editingDocId) {
-      updateDocument(editingDocId, docType, fields);
+      updateDocument(editingDocId, docType, fields, docStatus);
     } else {
-      createDocument(docType, fields, currentUser?.fullName);
+      createDocument(docType, fields, currentUser?.fullName, docStatus);
     }
     setAppView("list");
   };
@@ -525,6 +590,38 @@ export const App: React.FC = () => {
               <div className="brand-subtitle">องค์การบริหารส่วนจังหวัดปราจีนบุรี</div>
             </div>
           </button>
+
+          {/* Badge แสดงสถานะฐานข้อมูล */}
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "11.5px",
+              fontWeight: 600,
+              padding: "4px 10px",
+              borderRadius: "20px",
+              backgroundColor: isApiOnline ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
+              color: isApiOnline ? "#34d399" : "#fbbf24",
+              border: isApiOnline ? "1px solid rgba(52, 211, 153, 0.3)" : "1px solid rgba(251, 191, 36, 0.3)",
+            }}
+            title={
+              isApiOnline
+                ? "ฐานข้อมูล SQLite Backend ออนไลน์ (พอร์ต 3001) พร้อมจัดเก็บลงฐานข้อมูลส่วนกลาง"
+                : "ฐานข้อมูล Backend ออฟไลน์ - กำลังบันทึกข้อมูลใน LocalStorage ของเบราว์เซอร์อัตโนมัติ"
+            }
+          >
+            <span
+              style={{
+                width: "7px",
+                height: "7px",
+                borderRadius: "50%",
+                backgroundColor: isApiOnline ? "#10b981" : "#f59e0b",
+                display: "inline-block",
+              }}
+            />
+            {isApiOnline ? "SQLite ออนไลน์" : "โหมดออฟไลน์"}
+          </div>
 
           {/* Navigation Bar ด้านบนแบบเด่นชัด */}
           <nav className="header-main-nav">
@@ -742,6 +839,32 @@ export const App: React.FC = () => {
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  {/* ตัวเลือกสถานะเอกสาร */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                    <span style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>สถานะ:</span>
+                    <select
+                      value={docStatus}
+                      onChange={(e) => setDocStatus(e.target.value)}
+                      style={{
+                        padding: "2px 8px",
+                        fontSize: "12px",
+                        borderRadius: "6px",
+                        border: "1px solid #cbd5e1",
+                        backgroundColor: "#ffffff",
+                        color: "#1e293b",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                      title="เลือกสถานะเอกสาร (ร่าง, รอตรวจสอบ, อนุมัติแล้ว, พิมพ์แล้ว)"
+                    >
+                      <option value="DRAFT">📝 ร่างเอกสาร</option>
+                      <option value="REVIEW">🔍 รอตรวจสอบ</option>
+                      <option value="APPROVED">✅ อนุมัติแล้ว</option>
+                      <option value="PRINTED">🖨️ พิมพ์แล้ว</option>
+                      <option value="CANCELLED">❌ ยกเลิก</option>
+                    </select>
+                  </div>
+
                   <div className="save-indicator">
                     <span className="save-dot" />
                     <span>{saveStatus}</span>

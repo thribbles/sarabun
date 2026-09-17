@@ -31,22 +31,44 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   // ขนาดตัวอักษรหน้าฝั่งพิมพ์ (ค่าเริ่มต้น: ใหญ่ สบายตา)
   const [fontSizeLevel, setFontSizeLevel] = useState<"normal" | "large" | "xlarge">("large");
 
-  // ซิงค์ข้อมูลส่วนราชการ กอง และฝ่าย ให้ผูกกับบัญชีผู้ใช้ปัจจุบันโดยอัตโนมัติ (ไม่สามารถเลือกเปลี่ยนเองได้)
+  // ซิงค์ข้อมูลส่วนราชการ กอง ฝ่าย และชื่อผู้ลงนาม ให้ผูกกับบัญชีผู้ใช้ปัจจุบันโดยอัตโนมัติ
   useEffect(() => {
     if (currentUser) {
       const expectedDept = buildDepartmentString(currentUser);
-      if (fields.department !== expectedDept) {
+      const expectedSigner = `(${currentUser.fullName})`;
+      const expectedPos = currentUser.position;
+
+      const isDefaultSigner =
+        !fields.signerName ||
+        fields.signerName === "(นาย เอดาจิม่า เฮฮาจิ)" ||
+        fields.signerName === "(นายกฤษฎิ์ กษมพันธุ์)" ||
+        fields.signerName === "(นายสมศักดิ์ รักชาติ)" ||
+        fields.signerName === "(นายพิพัฒน์ ชัยชนะ)";
+
+      const shouldUpdateDept = fields.department !== expectedDept;
+      const shouldUpdateSigner = isDefaultSigner && fields.signerName !== expectedSigner;
+      const shouldUpdateDocNo =
+        currentUser.docPrefix && (!fields.documentNo || fields.documentNo.startsWith("ปจ "));
+
+      if (shouldUpdateDept || shouldUpdateSigner) {
         onChange({
           ...fields,
           department: expectedDept,
-          documentNo:
-            currentUser.docPrefix && (!fields.documentNo || fields.documentNo.startsWith("ปจ "))
-              ? currentUser.docPrefix
-              : fields.documentNo,
+          signerName: shouldUpdateSigner ? expectedSigner : fields.signerName,
+          signerPosition: shouldUpdateSigner ? expectedPos : fields.signerPosition,
+          documentNo: shouldUpdateDocNo ? currentUser.docPrefix : fields.documentNo,
         });
       }
     }
-  }, [currentUser?.id, currentUser?.division, currentUser?.section, currentUser?.phone, currentUser?.useShortOrgName]);
+  }, [
+    currentUser?.id,
+    currentUser?.fullName,
+    currentUser?.position,
+    currentUser?.division,
+    currentUser?.section,
+    currentUser?.phone,
+    currentUser?.useShortOrgName,
+  ]);
 
   const handleFieldChange = <K extends keyof PrintFields>(key: K, value: PrintFields[K]) => {
     onChange({
@@ -156,8 +178,29 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 <div className="dept-user-meta">
                   <span className="dept-user-icon">👤</span>
                   <div className="dept-user-meta-texts">
-                    <div className="dept-user-main">
-                      ผู้ร่างเอกสาร: <strong>{currentUser.fullName}</strong> ({currentUser.position})
+                    <div className="dept-user-main" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                      <span>ผู้ร่างเอกสาร: <strong>{currentUser.fullName}</strong> ({currentUser.position})</span>
+                      {fields.signerName === `(${currentUser.fullName})` ? (
+                        <span style={{ color: "#059669", fontSize: "12px", fontWeight: 600, background: "#ecfdf5", padding: "1px 8px", borderRadius: "12px" }}>
+                          ✓ ลายเซ็นตรงกับผู้ร่าง
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn-sync-dept"
+                          style={{ padding: "1px 8px", fontSize: "11.5px" }}
+                          onClick={() => {
+                            onChange({
+                              ...fields,
+                              signerName: `(${currentUser.fullName})`,
+                              signerPosition: currentUser.position,
+                            });
+                          }}
+                          title="ปรับชื่อและตำแหน่งผู้ลงนามในหนังสือให้ตรงกับผู้ร่างเอกสารนี้"
+                        >
+                          🔄 ปรับลายเซ็นให้ตรงกับผู้ร่าง
+                        </button>
+                      )}
                     </div>
                     <div className="dept-user-sub">
                       สังกัด: <strong>{currentUser.division}</strong> {currentUser.section ? `(${currentUser.section})` : ""} | {currentUser.phone}
@@ -423,8 +466,25 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
       {/* 3. ส่วนผู้ลงนามและท้ายกระดาษ */}
       <div className="form-section">
-        <div className="section-label">
+        <div className="section-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
           <span>ผู้ลงนามและท้ายกระดาษ</span>
+          {currentUser && (
+            <button
+              type="button"
+              className="btn-sync-dept"
+              style={{ padding: "2px 10px", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "4px" }}
+              onClick={() => {
+                onChange({
+                  ...fields,
+                  signerName: `(${currentUser.fullName})`,
+                  signerPosition: currentUser.position,
+                });
+              }}
+              title="ดึงชื่อและตำแหน่งของผู้เข้าใช้งานปัจจุบันมาใส่เป็นผู้ลงนาม"
+            >
+              🔄 ใช้ชื่อและตำแหน่งของฉัน ({currentUser.fullName})
+            </button>
+          )}
         </div>
 
         <div className="form-row-2">

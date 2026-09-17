@@ -113,7 +113,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     const trimmedUser = loginUsername.trim().toLowerCase();
     const found = members.find(
-      (m) => m.username.toLowerCase() === trimmedUser
+      (m) =>
+        m.username.toLowerCase() === trimmedUser ||
+        (m.username.toLowerCase() === "nayok" && (trimmedUser === "นายก" || trimmedUser === "nayok"))
     );
 
     if (!found) {
