@@ -1,5 +1,4 @@
 services:
-  # 1. ฐานข้อมูล PostgreSQL สำหรับ Production
   postgres:
     image: postgres:16-alpine
     container_name: sarabun_postgres
@@ -18,10 +17,9 @@ services:
       timeout: 5s
       retries: 5
 
-  # 2. ระบบหลังบ้าน NestJS Backend API
   api:
     build:
-      context: .
+      context: ./sarabun-system
       dockerfile: apps/api/Dockerfile
     container_name: sarabun_api
     restart: always
@@ -35,10 +33,9 @@ services:
       postgres:
         condition: service_healthy
 
-  # 3. ระบบหน้าบ้าน Web Frontend (Nginx)
   web:
     build:
-      context: .
+      context: ./sarabun-system
       dockerfile: apps/web/Dockerfile
     container_name: sarabun_web
     restart: always

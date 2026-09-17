@@ -12,10 +12,11 @@ export class DocumentsController {
   findAll(
     @Query("status") status?: string,
     @Query("department") department?: string,
+    @Query("createdById") createdById?: string,
     @Query("q") q?: string,
     @Query("page") page = "1",
   ) {
-    return this.documentsService.findAll({ status, department, q, page: Number(page) });
+    return this.documentsService.findAll({ status, department, createdById, q, page: Number(page) });
   }
 
   @Post()

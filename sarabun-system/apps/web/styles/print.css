@@ -92,14 +92,47 @@
   line-height: 1.15;
 }
 
-/* วันที่ หนังสือภายนอก: วางไว้กึ่งกลางหน้ากระดาษจริง (แนวเดียวกับตราครุฑ) */
+/* วันที่ หนังสือภายนอก: ตัวอักษรแรกของ "ชื่อเดือน" ต้องตรงกับ "เท้าขวา" ของตราครุฑ
+   ตามระเบียบสำนักนายกรัฐมนตรีว่าด้วยงานสารบรรณ ฉบับปรับปรุง พ.ศ. ๒๕๖๔
+   ─────────────────────────────────────────────────────────────────────
+   Layout: A4 กว้าง 210mm | ขอบซ้าย 3cm | ขอบขวา 2cm | content 15cm
+   ตราครุฑ 3cm กึ่งกลางหน้า (105mm จากซ้ายกระดาษ = 75mm จาก left margin)
+   เท้าขวาครุฑ = 75mm + 15mm = 90mm จาก left edge ของ content
+   ─────────────────────────────────────────────────────────────────────
+   ใช้ pattern: [dayPart right-align | anchor | monthYearPart left-align]
+   - .ext-date-row = flex row
+   - .ext-date-day = ส่วนวันที่ (text-align: right, width = กว้างพอ)
+   - ชื่อเดือน+ปี = เริ่มต้นจากจุด anchor กึ่งกลาง
+*/
 .ext-date-row {
-  text-align: center;
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-start;
   margin-top: 6pt;
   margin-bottom: 6pt;
-  transform: translateX(var(--center-fix));
   font-size: 16pt;
+  /* เลื่อน anchor ไปที่เท้าขวาของครุฑ:
+     = 90mm จาก left content edge
+     ลบด้วย center-fix compensation (ครุฑถูก translateX(-0.5cm) = ถูกเลื่อนซ้าย 5mm)
+     → anchor ที่ 90mm - 5mm = 85mm = 8.5cm */
+  padding-left: 8.5cm;
+  /* วันที่ (dayPart) ต้องอยู่ "ก่อน" anchor โดยใช้ negative margin */
 }
+
+/* วันที่ (เลขวันที่ + เว้นวรรค): อยู่ก่อนชื่อเดือน ดึงออกไปทางซ้ายด้วย negative margin */
+.ext-date-day {
+  /* ดึงออกไปทางซ้ายจาก anchor โดยใช้ absolute-like approach:
+     ใช้ white-space: nowrap ป้องกัน wrap
+     ใช้ margin-left: negative เท่ากับความกว้างประมาณของตัวเอง */
+  margin-left: -2em; /* ≈ ความกว้างของ "๑๗ " ที่ font-size 16pt */
+  white-space: nowrap;
+  display: inline-block;
+  text-align: right;
+  min-width: 2em;
+}
+
+
 
 /* คำลงท้าย: "ขอแสดงความนับถือ" กึ่งกลางหน้ากระดาษ ห่างจากเนื้อหา 1 Enter + Before 12pt */
 .doc-external .closing {

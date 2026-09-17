@@ -22,12 +22,13 @@ export class DocumentsService {
     };
   }
 
-  async findAll(filter: { status?: string; department?: string; q?: string; page: number }) {
+  async findAll(filter: { status?: string; department?: string; createdById?: string; q?: string; page: number }) {
     const pageSize = 50;
     const docs = await this.prisma.document.findMany({
       where: {
         status: filter.status,
         departmentId: filter.department,
+        createdById: filter.createdById,
         subject: filter.q ? { contains: filter.q } : undefined,
       },
       skip: (filter.page - 1) * pageSize,
@@ -41,6 +42,26 @@ export class DocumentsService {
     const fieldsStr =
       typeof dto.fields === "object" ? JSON.stringify(dto.fields) : dto.fields;
 
+    let validCreatedById: string | undefined = undefined;
+    if (dto.createdById) {
+      const userExists = await this.prisma.user.findUnique({
+        where: { id: dto.createdById },
+      });
+      if (userExists) {
+        validCreatedById = dto.createdById;
+      }
+    }
+
+    let validDepartmentId: string | undefined = undefined;
+    if (dto.departmentId) {
+      const deptExists = await this.prisma.department.findUnique({
+        where: { id: dto.departmentId },
+      });
+      if (deptExists) {
+        validDepartmentId = dto.departmentId;
+      }
+    }
+
     const doc = await this.prisma.document.create({
       data: {
         subject: dto.subject,
@@ -49,12 +70,16 @@ export class DocumentsService {
         toPerson: dto.toPerson,
         reference: dto.reference,
         status: dto.status || "DRAFT",
-        departmentId: dto.departmentId,
-        createdById: dto.createdById,
+        departmentId: validDepartmentId,
+        createdById: validCreatedById,
         fields: fieldsStr,
       },
     });
-    await this.logAction(doc.id, "CREATE");
+    try {
+      await this.logAction(doc.id, "CREATE");
+    } catch (e) {
+      // non-blocking
+    }
     return this.formatDoc(doc);
   }
 
@@ -68,6 +93,11 @@ export class DocumentsService {
   }
 
   async update(id: string, dto: UpdateDocumentDto) {
+    const existing = await this.prisma.document.findUnique({ where: { id } });
+    if (!existing) {
+      throw new NotFoundException("Document not found");
+    }
+
     const dataToUpdate: any = {};
     if (dto.subject !== undefined) dataToUpdate.subject = dto.subject;
     if (dto.docType !== undefined) dataToUpdate.docType = dto.docType;
@@ -84,11 +114,19 @@ export class DocumentsService {
       where: { id },
       data: dataToUpdate,
     });
-    await this.logAction(id, "UPDATE");
+    try {
+      await this.logAction(id, "UPDATE");
+    } catch (e) {
+      // non-blocking
+    }
     return this.formatDoc(doc);
   }
 
   async remove(id: string) {
+    const existing = await this.prisma.document.findUnique({ where: { id } });
+    if (!existing) {
+      return { deleted: true, note: "Document already deleted" };
+    }
     await this.prisma.document.delete({ where: { id } });
     return { deleted: true };
   }

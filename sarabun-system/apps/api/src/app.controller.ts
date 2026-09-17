@@ -72,8 +72,8 @@ export class AppController {
             <h1>🚀 Sarabun API Backend</h1>
             <span class="badge">● Online</span>
           </div>
-          <p>ระบบ Backend API จัดการหนังสือราชการอิเล็กทรอนิกส์ (NestJS 10 + SQLite)</p>
-          <p>ฐานข้อมูล: <strong>SQLite (dev.db)</strong> พร้อมใช้งาน</p>
+          <p>ระบบ Backend API จัดการหนังสือราชการอิเล็กทรอนิกส์ (NestJS 10 + PostgreSQL 16)</p>
+          <p>ฐานข้อมูล: <strong>PostgreSQL 16 (sarabun)</strong> พร้อมใช้งาน</p>
           <div class="routes">
             <div style="font-weight: 600; margin-bottom: 8px; color: #cbd5e1;">Available Endpoints:</div>
             <div class="route-item">

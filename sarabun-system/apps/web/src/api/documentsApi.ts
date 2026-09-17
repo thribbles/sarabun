@@ -84,11 +84,13 @@ export async function apiGetDocuments(params?: {
   q?: string;
   status?: string;
   department?: string;
+  createdById?: string;
 }): Promise<ApiDocument[]> {
   const query = new URLSearchParams();
   if (params?.q) query.set("q", params.q);
   if (params?.status) query.set("status", params.status);
   if (params?.department) query.set("department", params.department);
+  if (params?.createdById) query.set("createdById", params.createdById);
   query.set("page", "1");
 
   const res = await fetchWithFallback(`/documents?${query.toString()}`);

@@ -1,6 +1,6 @@
 /**
  * documentStore.ts
- * จัดการรายการเอกสารราชการ ทั้งแบบซิงค์กับ Backend API (NestJS + SQLite)
+ * จัดการรายการเอกสารราชการ ทั้งแบบซิงค์กับ Backend API (NestJS + PostgreSQL 16)
  * และ LocalStorage Cache รองรับการทำงานแบบ Dual-Mode (Online/Offline Resilience)
  */
 import { PrintFields } from "../components/print/PrintPage";
@@ -25,7 +25,9 @@ export interface SavedDocument {
   status?: string;     // DRAFT / REVIEW / APPROVED / PRINTED / CANCELLED
   createdAt: string;   // ISO string
   updatedAt: string;   // ISO string
-  createdBy?: string;  // username หรือชื่อผู้สร้าง
+  createdBy?: string;  // ชื่อผู้สร้าง
+  authorId?: string;   // id หรือ username ของผู้สร้าง (สำหรับแยกงานเฉพาะบุคคล)
+  userId?: string;
   isSynced?: boolean;  // ซิงค์กับฐานข้อมูลแล้วหรือไม่
 }
 
@@ -61,6 +63,8 @@ function mapApiDocToSavedDoc(apiDoc: ApiDocument): SavedDocument {
     createdAt: apiDoc.createdAt,
     updatedAt: apiDoc.updatedAt,
     createdBy: apiDoc.createdById,
+    authorId: apiDoc.createdById,
+    userId: apiDoc.createdById,
     isSynced: true,
   };
 }
@@ -68,7 +72,7 @@ function mapApiDocToSavedDoc(apiDoc: ApiDocument): SavedDocument {
 /**
  * ซิงค์ข้อมูลกับ Backend API (ถ้าออนไลน์) แล้วอัปเดตแคชในเครื่อง
  */
-export async function syncDocumentsFromApi(): Promise<{
+export async function syncDocumentsFromApi(user?: { id?: string; username?: string } | null): Promise<{
   docs: SavedDocument[];
   isOnline: boolean;
 }> {
@@ -78,7 +82,8 @@ export async function syncDocumentsFromApi(): Promise<{
       return { docs: loadDocuments(), isOnline: false };
     }
 
-    const remoteDocs = await apiGetDocuments();
+    const userId = user?.id || user?.username;
+    const remoteDocs = await apiGetDocuments(userId ? { createdById: userId } : undefined);
     const mapped = remoteDocs.map(mapApiDocToSavedDoc);
 
     // เมิร์จกับเอกสารในเครื่องที่ยังไม่ได้ซิงค์
@@ -100,9 +105,11 @@ export function createDocument(
   docType: DocumentTypeCode,
   fields: PrintFields,
   createdBy?: string,
+  authorId?: string,
   status: string = "DRAFT"
 ): SavedDocument {
   const now = new Date().toISOString();
+  const effectiveAuthor = authorId || createdBy || "anonymous";
   const doc: SavedDocument = {
     id: `doc-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     docType,
@@ -113,6 +120,8 @@ export function createDocument(
     createdAt: now,
     updatedAt: now,
     createdBy,
+    authorId: effectiveAuthor,
+    userId: effectiveAuthor,
     isSynced: false,
   };
   const docs = loadDocuments();
@@ -120,9 +129,40 @@ export function createDocument(
   saveDocuments(docs);
 
   // Trigger background sync to API
-  createDocumentAsync(docType, fields, createdBy, status).catch(console.warn);
+  createDocumentAsync(docType, fields, createdBy, effectiveAuthor, status).catch(console.warn);
 
   return doc;
+}
+
+/** โหลดรายการเอกสารเฉพาะที่เป็นของผู้ใช้คนนี้เท่านั้น (ไม่มีข้อยกเว้นสำหรับ admin หรือ nayok) */
+export function loadDocumentsForUser(
+  user: { id?: string; username?: string; fullName?: string } | null
+): SavedDocument[] {
+  const all = loadDocuments();
+  if (!user) return [];
+
+  const targetIds = [
+    user.id?.toLowerCase(),
+    user.username?.toLowerCase(),
+  ].filter(Boolean) as string[];
+
+  const targetNames = [
+    user.fullName?.toLowerCase(),
+    user.username?.toLowerCase(),
+  ].filter(Boolean) as string[];
+
+  return all.filter((d) => {
+    const aId = (d.authorId || "").toLowerCase();
+    const uId = (d.userId || "").toLowerCase();
+    const cBy = (d.createdBy || "").toLowerCase();
+
+    // ตรงกับ user id หรือ username
+    const matchId = targetIds.some((t) => aId === t || uId === t);
+    // ตรงกับชื่อ-สกุล หรือชื่อสร้าง
+    const matchName = targetNames.some((t) => cBy === t || aId === t || uId === t);
+
+    return matchId || matchName;
+  });
 }
 
 /** สร้างเอกสารใหม่ผ่าน Backend API แบบ Async */
@@ -130,6 +170,7 @@ export async function createDocumentAsync(
   docType: DocumentTypeCode,
   fields: PrintFields,
   createdBy?: string,
+  authorId?: string,
   status: string = "DRAFT"
 ): Promise<SavedDocument> {
   const now = new Date().toISOString();
@@ -141,7 +182,7 @@ export async function createDocumentAsync(
       toPerson: fields.to,
       reference: fields.reference,
       status,
-      createdById: createdBy,
+      createdById: authorId || createdBy,
       fields,
     });
     const saved = mapApiDocToSavedDoc(res);

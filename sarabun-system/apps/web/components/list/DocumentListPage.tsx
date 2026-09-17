@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import {
   SavedDocument,
-  loadDocuments,
+  loadDocumentsForUser,
   deleteDocument,
   docTypeLabel,
   formatThaiDate,
@@ -10,7 +10,7 @@ import {
 import { DocumentTypeCode } from "../print/PrintPage";
 
 interface DocumentListPageProps {
-  currentUser?: { fullName: string; username: string } | null;
+  currentUser?: { id?: string; fullName: string; username: string } | null;
   onCreateNew: (docType: DocumentTypeCode) => void;
   onEditDoc: (doc: SavedDocument) => void;
   onViewDoc: (doc: SavedDocument) => void;
@@ -22,7 +22,7 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
   onEditDoc,
   onViewDoc,
 }) => {
-  const [docs, setDocs] = useState<SavedDocument[]>(() => loadDocuments());
+  const [docs, setDocs] = useState<SavedDocument[]>(() => loadDocumentsForUser(currentUser));
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"all" | DocumentTypeCode>("all");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
@@ -30,21 +30,21 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
-  const reload = useCallback(() => setDocs(loadDocuments()), []);
+  const reload = useCallback(() => setDocs(loadDocumentsForUser(currentUser)), [currentUser]);
 
-  // ทำการซิงค์ข้อมูลกับ Backend API (NestJS + SQLite)
+  // ทำการซิงค์ข้อมูลกับ Backend API (NestJS + SQLite/Postgres)
   const handleSync = useCallback(async () => {
     setIsSyncing(true);
     try {
-      const res = await syncDocumentsFromApi();
-      setDocs(res.docs);
+      const res = await syncDocumentsFromApi(currentUser);
+      setDocs(loadDocumentsForUser(currentUser));
       setIsOnline(res.isOnline);
     } catch {
       setIsOnline(false);
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [currentUser]);
 
   useEffect(() => {
     handleSync();
@@ -75,7 +75,14 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
       <div className="doclist-header">
         <div className="doclist-header-left">
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-            <h1 className="doclist-title" style={{ margin: 0 }}>📂 รายการหนังสือราชการ</h1>
+            <h1 className="doclist-title" style={{ margin: 0 }}>
+              📂 หนังสือราชการของฉัน
+              {currentUser?.fullName && (
+                <span style={{ fontSize: "14px", fontWeight: 500, color: "#475569", marginLeft: "10px" }}>
+                  ({currentUser.fullName})
+                </span>
+              )}
+            </h1>
             {/* Status Connection Indicator */}
             <span
               style={{
@@ -92,7 +99,7 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
               }}
               title={
                 isOnline
-                  ? "เชื่อมต่อฐานข้อมูล SQLite Backend เรียบร้อยแล้ว (พอร์ต 3001)"
+                  ? "เชื่อมต่อฐานข้อมูล PostgreSQL Backend เรียบร้อยแล้ว (พอร์ต 3001)"
                   : "ระบบกำลังทำงานในโหมด Offline LocalStorage บันทึกในเบราว์เซอร์"
               }
             >
@@ -105,7 +112,7 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
                   display: "inline-block",
                 }}
               />
-              {isOnline ? "ฐานข้อมูล SQLite ออนไลน์" : "โหมดออฟไลน์ (เบราว์เซอร์)"}
+              {isOnline ? "ฐานข้อมูล PostgreSQL ออนไลน์" : "โหมดออฟไลน์ (เบราว์เซอร์)"}
             </span>
 
             <button

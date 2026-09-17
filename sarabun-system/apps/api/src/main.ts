@@ -7,7 +7,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.enableCors({ origin: true, credentials: true });
   const port = process.env.PORT ?? 3001;
-  await app.listen(port);
-  console.log(`Sarabun API is running on http://localhost:${port}`);
+  await app.listen(port, "0.0.0.0");
+  console.log(`Sarabun API is running on http://0.0.0.0:${port}`);
 }
 bootstrap();

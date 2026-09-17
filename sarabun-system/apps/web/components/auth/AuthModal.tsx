@@ -3,6 +3,7 @@ import {
   UserMember,
   loadAllMembers,
   saveAllMembers,
+  updateMemberProfile,
 } from "../../src/authTypes";
 import { PRACHIN_BURI_DIVISIONS } from "../../src/sampleData";
 
@@ -115,7 +116,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     const found = members.find(
       (m) =>
         m.username.toLowerCase() === trimmedUser ||
-        (m.username.toLowerCase() === "nayok" && (trimmedUser === "นายก" || trimmedUser === "nayok"))
+        (m.username.toLowerCase() === "nayok" &&
+          (trimmedUser === "นายก" ||
+            trimmedUser === "nayok" ||
+            trimmedUser === "ฮนมะ" ||
+            trimmedUser === "ฮนมะ ยูจิโจ" ||
+            trimmedUser === "ฮนมะ ยูจิโร่")) ||
+        (m.username.toLowerCase() === "edu" &&
+          (trimmedUser === "edu" ||
+            trimmedUser === "เอดาจิมา" ||
+            trimmedUser === "เอดาจิม่า" ||
+            trimmedUser === "เอดาจิม่า เฮฮาจิ" ||
+            trimmedUser === "กองการศึกษา")) ||
+        (m.username.toLowerCase() === "yotta" &&
+          (trimmedUser === "yotta" ||
+            trimmedUser === "ดีเคด" ||
+            trimmedUser === "ดีเคท" ||
+            trimmedUser === "มาสไรเดอ" ||
+            trimmedUser === "มาสไรเดอ ดีเคท" ||
+            trimmedUser === "มาสค์ไรเดอร์ ดีเคด" ||
+            trimmedUser === "กองยุทธศาสตร์"))
     );
 
     if (!found) {
@@ -194,8 +214,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     const finalSection = profCustomSection.trim() || profSection;
 
-    const updated: UserMember = {
-      ...currentUser,
+    const updatedData: Partial<UserMember> = {
       fullName: profFullName.trim(),
       position: profPosition.trim(),
       division: profDivision,
@@ -204,12 +223,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       docPrefix: profDocPrefix.trim(),
     };
 
-    const updatedList = members.map((m) => (m.id === updated.id ? updated : m));
-    saveAllMembers(updatedList);
-    setMembers(updatedList);
+    const updated = updateMemberProfile(currentUser.id, updatedData) || {
+      ...currentUser,
+      ...updatedData,
+    };
+
+    setMembers(loadAllMembers());
     onUpdateProfile(updated);
 
-    setProfSuccess("บันทึกข้อมูลส่วนตัวเรียบร้อยแล้ว และอัปเดตข้อมูลบนหัวหนังสือแล้ว");
+    setProfSuccess("บันทึกข้อมูลส่วนตัวเรียบร้อยแล้ว และอัปเดตข้อมูลบนหัวหนังสือและผู้ลงนามแล้ว");
     setTimeout(() => {
       onClose();
     }, 900);

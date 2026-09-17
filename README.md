@@ -76,9 +76,35 @@ npm run dev:web
 ```
 เปิดเว็บเบราว์เซอร์ไปที่: **[http://localhost:3000](http://localhost:3000)**
 
-#### 🔹 (ทางเลือก) รันระบบหลังบ้าน (Backend API NestJS + SQLite - พอร์ต 3001):
+#### 🔹 (ทางเลือก) รันระบบหลังบ้าน (Backend API NestJS + PostgreSQL - พอร์ต 3001):
 ```bash
 npm run dev:api
+```
+
+---
+
+### 4. 🐳 รันผ่าน Docker & PostgreSQL (Production Deployment)
+
+ระบบรองรับการ Deploy ผ่าน **Docker Compose** ได้ในคำสั่งเดียว ครบทั้งระบบหน้าบ้าน Web Client (Nginx), ระบบหลังบ้าน NestJS และฐานข้อมูล **PostgreSQL**:
+
+```bash
+docker compose up -d --build
+```
+
+- **Frontend (Web Application):** [http://localhost:3000](http://localhost:3000)
+- **Backend (NestJS API):** [http://localhost:3001](http://localhost:3001)
+- **Database (PostgreSQL 16):** `localhost:5432` (User: `postgres`, DB: `sarabun`)
+
+คำสั่งสำหรับตรวจสอบและจัดการคอนเทนเนอร์:
+```bash
+# ตรวจสอบสถานะการทำงาน
+docker compose ps
+
+# ดูบันทึกการทำงาน (Logs)
+docker compose logs -f
+
+# หยุดการทำงาน
+docker compose down
 ```
 
 ---

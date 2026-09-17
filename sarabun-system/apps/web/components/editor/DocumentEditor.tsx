@@ -8,6 +8,7 @@ import {
   formatToThaiOfficialDate,
   getTodayThaiOfficialDate,
 } from "../print/paginationHelper";
+import { Signatory, loadSignatories, getSignatoriesForUser } from "../../src/signatoryStore";
 
 interface DocumentEditorProps {
   type: DocumentTypeCode;
@@ -17,6 +18,7 @@ interface DocumentEditorProps {
   onInsertSampleTable: () => void;
   currentUser?: UserMember | null;
   onOpenAuth?: (tab?: "login" | "register" | "profile") => void;
+  onManageSignatories?: () => void;
 }
 
 export const DocumentEditor: React.FC<DocumentEditorProps> = ({
@@ -27,35 +29,30 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
   onInsertSampleTable,
   currentUser,
   onOpenAuth,
+  onManageSignatories,
 }) => {
   // ขนาดตัวอักษรหน้าฝั่งพิมพ์ (ค่าเริ่มต้น: ใหญ่ สบายตา)
   const [fontSizeLevel, setFontSizeLevel] = useState<"normal" | "large" | "xlarge">("large");
 
-  // ซิงค์ข้อมูลส่วนราชการ กอง ฝ่าย และชื่อผู้ลงนาม ให้ผูกกับบัญชีผู้ใช้ปัจจุบันโดยอัตโนมัติ
+  // รายชื่อผู้ลงนามที่บันทึกไว้ (กรองตามสิทธิ์กอง: ผู้ลงนามลงนามได้แค่กองนั้นๆ ยกเว้นนายก อบจ. เห็นทุกกอง)
+  const [signatories, setSignatories] = useState<Signatory[]>([]);
+
+  useEffect(() => {
+    setSignatories(getSignatoriesForUser(currentUser, fields.department));
+  }, [currentUser?.id, currentUser?.username, currentUser?.division, fields.department]);
+
+  // ซิงค์ข้อมูลสังกัดและเลขที่เอกสารเฉพาะเมื่อยังไม่มีค่า (ไม่ทับซ้อนหรือเขียนทับชื่อผู้ลงนามที่ผู้ใช้เลือก)
   useEffect(() => {
     if (currentUser) {
       const expectedDept = buildDepartmentString(currentUser);
-      const expectedSigner = `(${currentUser.fullName})`;
-      const expectedPos = currentUser.position;
-
-      const isDefaultSigner =
-        !fields.signerName ||
-        fields.signerName === "(นาย เอดาจิม่า เฮฮาจิ)" ||
-        fields.signerName === "(นายกฤษฎิ์ กษมพันธุ์)" ||
-        fields.signerName === "(นายสมศักดิ์ รักชาติ)" ||
-        fields.signerName === "(นายพิพัฒน์ ชัยชนะ)";
-
-      const shouldUpdateDept = fields.department !== expectedDept;
-      const shouldUpdateSigner = isDefaultSigner && fields.signerName !== expectedSigner;
+      const shouldUpdateDept = !fields.department;
       const shouldUpdateDocNo =
         currentUser.docPrefix && (!fields.documentNo || fields.documentNo.startsWith("ปจ "));
 
-      if (shouldUpdateDept || shouldUpdateSigner) {
+      if (shouldUpdateDept) {
         onChange({
           ...fields,
           department: expectedDept,
-          signerName: shouldUpdateSigner ? expectedSigner : fields.signerName,
-          signerPosition: shouldUpdateSigner ? expectedPos : fields.signerPosition,
           documentNo: shouldUpdateDocNo ? currentUser.docPrefix : fields.documentNo,
         });
       }
@@ -69,6 +66,62 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
     currentUser?.phone,
     currentUser?.useShortOrgName,
   ]);
+
+  // กรองรายชื่อผู้ลงนาม:
+  // 1) ตัดรายการที่ชื่อตรงกับ currentUser ออก เพื่อไม่ให้เกิดปุ่ม "ฉัน" ชน/ซ้ำซ้อนกับรายชื่อ
+  // 2) ตัดรายการที่ชื่อซ้ำกันเองออก (Deduplicate)
+  const filteredSignatories = React.useMemo(() => {
+    const cleanUser = currentUser?.fullName ? currentUser.fullName.replace(/[()]/g, "").trim().toLowerCase() : "";
+    const seen = new Set<string>();
+    const result: Signatory[] = [];
+
+    for (const s of signatories) {
+      const cleanName = s.name.replace(/[()]/g, "").trim().toLowerCase();
+      if (cleanUser && cleanName === cleanUser) {
+        continue;
+      }
+      if (!seen.has(cleanName)) {
+        seen.add(cleanName);
+        result.push(s);
+      }
+    }
+    return result;
+  }, [signatories, currentUser?.fullName]);
+
+  const currentCleanSigner = (fields.signerName || "").replace(/[()]/g, "").trim().toLowerCase();
+  const userCleanName = (currentUser?.fullName || "").replace(/[()]/g, "").trim().toLowerCase();
+  const isSelfSelected = Boolean(userCleanName && currentCleanSigner === userCleanName);
+
+  const isSignatorySelected = (s: Signatory) => {
+    const cleanS = s.name.replace(/[()]/g, "").trim().toLowerCase();
+    return cleanS === currentCleanSigner;
+  };
+
+  const applySigner = (name: string, position: string) => {
+    onChange({
+      ...fields,
+      signerName: name,
+      signerPosition: position,
+    });
+  };
+
+  const selectedDropdownValue = React.useMemo(() => {
+    if (isSelfSelected) return "self";
+    const matched = filteredSignatories.find(isSignatorySelected);
+    return matched ? matched.id : "";
+  }, [isSelfSelected, filteredSignatories, currentCleanSigner]);
+
+  const handleDropdownChange = (val: string) => {
+    if (!val) return;
+    if (val === "self" && currentUser) {
+      applySigner(`(${currentUser.fullName})`, currentUser.position);
+    } else {
+      const target = filteredSignatories.find((s) => s.id === val);
+      if (target) {
+        applySigner(target.name, target.position);
+      }
+    }
+  };
 
   const handleFieldChange = <K extends keyof PrintFields>(key: K, value: PrintFields[K]) => {
     onChange({
@@ -142,95 +195,16 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
 
         {type === "memo" ? (
           <div className="form-group">
-            <div className="dept-bound-card">
-              <div className="dept-bound-header">
-                <div className="dept-bound-title-row">
-                  <label className="form-label" style={{ margin: 0 }}>
-                    ส่วนราชการ: <strong>อบจ.ปราจีนบุรี</strong>
-                  </label>
-                  <span className="dept-lock-badge">
-                    🔒 ผูกกับข้อมูลผู้ใช้ (ไม่สามารถเลือกเปลี่ยนได้)
-                  </span>
-                </div>
-                {onOpenAuth && (
-                  <div className="dept-bound-btn-group">
-                    <button
-                      type="button"
-                      className="btn-dept-action"
-                      onClick={() => onOpenAuth("profile")}
-                      title="แก้ไขข้อมูลสังกัด กอง ฝ่าย หรือเบอร์โทรในบัญชีผู้ใช้"
-                    >
-                      ✏️ แก้ไขสังกัด / โปรไฟล์
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-dept-action secondary"
-                      onClick={() => onOpenAuth("login")}
-                      title="สลับไปใช้บัญชีอื่นเพื่อเปลี่ยนสังกัด กอง และฝ่าย"
-                    >
-                      🔄 สลับผู้ใช้
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {currentUser ? (
-                <div className="dept-user-meta">
-                  <span className="dept-user-icon">👤</span>
-                  <div className="dept-user-meta-texts">
-                    <div className="dept-user-main" style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-                      <span>ผู้ร่างเอกสาร: <strong>{currentUser.fullName}</strong> ({currentUser.position})</span>
-                      {fields.signerName === `(${currentUser.fullName})` ? (
-                        <span style={{ color: "#059669", fontSize: "12px", fontWeight: 600, background: "#ecfdf5", padding: "1px 8px", borderRadius: "12px" }}>
-                          ✓ ลายเซ็นตรงกับผู้ร่าง
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn-sync-dept"
-                          style={{ padding: "1px 8px", fontSize: "11.5px" }}
-                          onClick={() => {
-                            onChange({
-                              ...fields,
-                              signerName: `(${currentUser.fullName})`,
-                              signerPosition: currentUser.position,
-                            });
-                          }}
-                          title="ปรับชื่อและตำแหน่งผู้ลงนามในหนังสือให้ตรงกับผู้ร่างเอกสารนี้"
-                        >
-                          🔄 ปรับลายเซ็นให้ตรงกับผู้ร่าง
-                        </button>
-                      )}
-                    </div>
-                    <div className="dept-user-sub">
-                      สังกัด: <strong>{currentUser.division}</strong> {currentUser.section ? `(${currentUser.section})` : ""} | {currentUser.phone}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="dept-user-meta not-logged-in">
-                  <span>กรุณาเข้าสู่ระบบเพื่อระบุสังกัด กอง และฝ่ายของผู้ร่างโดยอัตโนมัติ</span>
-                  {onOpenAuth && (
-                    <button
-                      type="button"
-                      className="btn-login-small"
-                      onClick={() => onOpenAuth("login")}
-                    >
-                      🔑 เข้าสู่ระบบ
-                    </button>
-                  )}
-                </div>
-              )}
-
-              <input
-                type="text"
-                className="form-input text-dept-highlight text-dept-locked"
-                value={fields.department || (currentUser ? buildDepartmentString(currentUser) : "")}
-                readOnly
-                title="ส่วนราชการผูกกับข้อมูลผู้ใช้ ไม่สามารถเลือกหรือพิมพ์เปลี่ยนโดยตรงได้ (แก้ไขได้ผ่านโปรไฟล์ผู้ใช้ หรือปุ่มแก้ไขสังกัด)"
-                placeholder="อบจ.ปราจีนบุรี กอง... (ฝ่าย...) โทร. ..."
-              />
-            </div>
+            <label className="form-label">
+              ส่วนราชการ <span className="form-hint">(เช่น อบจ.ปราจีนบุรี กองช่าง โทร. ๐-๓๗๒๑-๑๕๗๙)</span>
+            </label>
+            <input
+              type="text"
+              className="form-input"
+              value={fields.department || ""}
+              onChange={(e) => handleFieldChange("department", e.target.value)}
+              placeholder="เช่น อบจ.ปราจีนบุรี กองช่าง (ฝ่ายก่อสร้าง) โทร. ..."
+            />
           </div>
         ) : (
           <>
@@ -253,7 +227,7 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
                 className="form-input"
                 value={fields.agencyAddress || ""}
                 onChange={(e) => handleFieldChange("agencyAddress", e.target.value)}
-                placeholder="เช่น ๙๙๙ หมู่ ๑ ตำบลไม้เค็ด อำเภอเมืองปราจีนบุรี จังหวัดปราจีนบุรี ๒๕๐๐๐"
+                placeholder="เช่น ๘๑๘ ถนนปราจีนอนุสรณ์ ตำบลหน้าเมือง อำเภอเมืองปราจีนบุรี จังหวัดปราจีนบุรี ๒๕๐๐๐"
               />
             </div>
           </>
@@ -468,23 +442,134 @@ export const DocumentEditor: React.FC<DocumentEditorProps> = ({
       <div className="form-section">
         <div className="section-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
           <span>ผู้ลงนามและท้ายกระดาษ</span>
-          {currentUser && (
+          {onManageSignatories && (
             <button
               type="button"
-              className="btn-sync-dept"
-              style={{ padding: "2px 10px", fontSize: "12px", display: "inline-flex", alignItems: "center", gap: "4px" }}
-              onClick={() => {
-                onChange({
-                  ...fields,
-                  signerName: `(${currentUser.fullName})`,
-                  signerPosition: currentUser.position,
-                });
+              onClick={onManageSignatories}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#0284c7",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "2px 6px",
               }}
-              title="ดึงชื่อและตำแหน่งของผู้เข้าใช้งานปัจจุบันมาใส่เป็นผู้ลงนาม"
+              title="เปิดหน้าจัดการรายชื่อผู้ลงนาม"
             >
-              🔄 ใช้ชื่อและตำแหน่งของฉัน ({currentUser.fullName})
+              ⚙️ จัดการรายชื่อผู้ลงนาม →
             </button>
           )}
+        </div>
+
+        {/* Quick-select: เลือกผู้ลงนามจากรายการที่บันทึกไว้ (แก้ปัญหาซ้ำซ้อนและชนกัน) */}
+        <div
+          className="form-group"
+          style={{
+            marginBottom: "16px",
+            padding: "12px 14px",
+            backgroundColor: "#f8fafc",
+            borderRadius: "10px",
+            border: "1px solid #e2e8f0",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+            <label className="form-label" style={{ margin: 0, fontWeight: 700, color: "#1e293b", fontSize: "13px" }}>
+              📋 เลือกผู้ลงนาม (จากรายการที่บันทึกไว้)
+            </label>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {/* Dropdown Selector สำหรับเลือกได้ชัดเจน */}
+            <select
+              className="form-input"
+              value={selectedDropdownValue}
+              onChange={(e) => handleDropdownChange(e.target.value)}
+              style={{
+                backgroundColor: "#ffffff",
+                fontSize: "13px",
+                fontWeight: 500,
+                color: "#1e293b",
+                cursor: "pointer",
+              }}
+            >
+              <option value="">-- เลือกผู้ลงนามจากรายการที่บันทึกไว้ --</option>
+              {currentUser && (
+                <option value="self">
+                  👤 บัญชีของฉัน: ({currentUser.fullName}) — {currentUser.position}
+                </option>
+              )}
+              {filteredSignatories.map((s) => (
+                <option key={s.id} value={s.id}>
+                  ✍️ {s.note ? `[${s.note}] ` : ""}{s.name} — {s.position}
+                </option>
+              ))}
+            </select>
+
+            {/* Quick Chips สำหรับเลือกด่วน พร้อมแสดงสถานะที่เลือกอยู่ ไม่ซ้ำซ้อน */}
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+              <span style={{ fontSize: "12px", color: "#64748b", fontWeight: 600 }}>เลือกด่วน:</span>
+
+              {/* ชิป: ตัวเอง */}
+              {currentUser && (
+                <button
+                  type="button"
+                  onClick={() => applySigner(`(${currentUser.fullName})`, currentUser.position)}
+                  style={{
+                    padding: "4px 12px",
+                    fontSize: "12.5px",
+                    fontWeight: 600,
+                    borderRadius: "16px",
+                    border: isSelfSelected ? "1.5px solid #059669" : "1px solid #cbd5e1",
+                    backgroundColor: isSelfSelected ? "#ecfdf5" : "#ffffff",
+                    color: isSelfSelected ? "#065f46" : "#334155",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    boxShadow: isSelfSelected ? "0 1px 3px rgba(5, 150, 105, 0.2)" : "none",
+                    transition: "all 0.15s ease",
+                  }}
+                  title="ใช้ชื่อและตำแหน่งของฉันเป็นผู้ลงนาม"
+                >
+                  {isSelfSelected ? "✓" : "👤"} ฉัน ({currentUser.fullName})
+                </button>
+              )}
+
+              {/* ชิป: ผู้ลงนามที่บันทึกไว้ (กรองชื่อที่ซ้ำกับตัวเองออกแล้ว) */}
+              {filteredSignatories.map((s) => {
+                const isSelected = isSignatorySelected(s);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => applySigner(s.name, s.position)}
+                    style={{
+                      padding: "4px 12px",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      borderRadius: "16px",
+                      border: isSelected ? "1.5px solid #0284c7" : "1px solid #cbd5e1",
+                      backgroundColor: isSelected ? "#f0f9ff" : "#ffffff",
+                      color: isSelected ? "#0369a1" : "#334155",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      boxShadow: isSelected ? "0 1px 3px rgba(2, 132, 199, 0.2)" : "none",
+                      transition: "all 0.15s ease",
+                    }}
+                    title={`เลือก ${s.name} (${s.position})`}
+                  >
+                    {isSelected ? "✓" : "✍️"} {s.note || s.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         <div className="form-row-2">

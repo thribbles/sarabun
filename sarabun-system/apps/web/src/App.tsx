@@ -15,10 +15,14 @@ import {
   UserMember,
   loadCurrentMember,
   saveCurrentMember,
+  clearCurrentMember,
+  loadAllMembers,
   buildDepartmentString,
 } from "./authTypes";
 import { AuthModal } from "../components/auth/AuthModal";
-import { LoginPage } from "../components/auth/LoginPage";
+import { AuthPage } from "../components/auth/AuthPage";
+import { ProfilePage } from "../components/auth/ProfilePage";
+import { SignatoryPage } from "../components/auth/SignatoryPage";
 import { DocumentListPage } from "../components/list/DocumentListPage";
 import {
   SavedDocument,
@@ -28,8 +32,11 @@ import {
 import { checkApiHealth } from "./api/documentsApi";
 
 export const App: React.FC = () => {
-  // ─── View routing: "list" = หน้าหลัก, "editor" = หน้าร่าง/แก้ไข, "view" = ดู+พิมพ์
-  const [appView, setAppView] = useState<"list" | "editor" | "view">("list");
+
+  // ─── View routing: "list" = หน้าหลัก, "editor" = หน้าร่าง/แก้ไข, "view" = ดู+พิมพ์, "profile" = แก้ไขโปรไฟล์, "signatories" = จัดการผู้ลงนาม
+  const [appView, setAppView] = useState<"list" | "editor" | "view" | "profile" | "signatories">("list");
+  // บันทึกหน้าที่อยู่ก่อนหน้า สำหรับการกดย้อนกลับจากหน้าการตั้งค่า / จัดการผู้ลงนาม
+  const [previousView, setPreviousView] = useState<"list" | "editor" | "view">("list");
   // id ของเอกสารที่กำลังแก้ไข (null = สร้างใหม่)
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
 
@@ -90,6 +97,25 @@ export const App: React.FC = () => {
             parsed.documentNo = SAMPLE_EXTERNAL.documentNo;
           }
         }
+
+        // ── แก้ที่อยู่เก่าที่อาจผิด: อบจ.ปราจีนบุรีตั้งอยู่ที่ "องค์การบริหารส่วนจังหวัด" ไม่ใช่ศาลากลางจังหวัด ──
+        // ถ้า agencyTop เป็น อบจ./องค์การบริหารส่วนจังหวัดปราจีนบุรี แต่ที่อยู่ยังผิดหรือว่างเปล่า ให้รีเซ็ตเป็นที่อยู่ถูกต้อง
+        const isAbj =
+          parsed.agencyTop?.includes("องค์การบริหารส่วนจังหวัดปราจีนบุรี") ||
+          parsed.agencyTop?.includes("อบจ.ปราจีนบุรี");
+        const CORRECT_ADDRESS = "๘๑๘ ถนนปราจีนอนุสรณ์ ตำบลหน้าเมือง อำเภอเมืองปราจีนบุรี จังหวัดปราจีนบุรี ๒๕๐๐๐";
+        if (isAbj && parsed.agencyAddress && parsed.agencyAddress !== CORRECT_ADDRESS) {
+          // ตรวจสอบว่าเป็นที่อยู่เก่าที่ผิด (ไม่ใช่ที่อยู่ที่ผู้ใช้แก้เองโดยตั้งใจ)
+          const isOldWrongAddress =
+            parsed.agencyAddress.includes("ถนนราชดำเนิน") ||
+            parsed.agencyAddress.includes("พระนคร") ||
+            parsed.agencyAddress.includes("กรุงเทพ") ||
+            parsed.agencyAddress.startsWith("818 ") || // เลขอารบิก ยังไม่แปลงเป็นไทย
+            parsed.agencyAddress === "818 ถนนปราจีนอนุสรณ์ ตำบลหน้าเมือง อำเภอเมืองปราจีนบุรี จังหวัดปราจีนบุรี 25000";
+          if (isOldWrongAddress) {
+            parsed.agencyAddress = CORRECT_ADDRESS;
+          }
+        }
         if (parsed.showBottomSlogan === undefined) {
           parsed.showBottomSlogan = true;
         }
@@ -121,17 +147,15 @@ export const App: React.FC = () => {
     if (user) {
       setCurrentUser(user);
       setFields((prev) => {
-        const isDefaultSigner =
-          !prev.signerName ||
-          prev.signerName === "(นาย เอดาจิม่า เฮฮาจิ)" ||
-          prev.signerName === "(นายกฤษฎิ์ กษมพันธุ์)" ||
-          prev.signerName === "(นายสมศักดิ์ รักชาติ)" ||
-          prev.signerName === "(นายพิพัฒน์ ชัยชนะ)";
-        return {
-          ...prev,
-          signerName: isDefaultSigner ? `(${user.fullName})` : prev.signerName,
-          signerPosition: isDefaultSigner ? user.position : prev.signerPosition,
-        };
+        // หากเอกสารยังไม่มีผู้ลงนาม ให้ใส่ชื่อผู้ใช้ปัจจุบันเริ่มต้น (ไม่เขียนทับเอกสารที่มีผู้ลงนามอยู่แล้ว)
+        if (!prev.signerName) {
+          return {
+            ...prev,
+            signerName: `(${user.fullName})`,
+            signerPosition: user.position,
+          };
+        }
+        return prev;
       });
     }
   }, []);
@@ -159,8 +183,10 @@ export const App: React.FC = () => {
   // ออกจากระบบ
   const handleLogoutUser = () => {
     setCurrentUser(null);
-    saveCurrentMember(null);
+    clearCurrentMember();
+    setAppView("list");
   };
+
 
   // บันทึกการแก้ไขข้อมูลโปรไฟล์
   const handleUpdateProfile = (user: UserMember) => {
@@ -466,11 +492,6 @@ export const App: React.FC = () => {
     }, 300);
   };
 
-  // ล้างข้อมูลเพื่อร่างใหม่
-  if (!currentUser) {
-    return <LoginPage onLogin={handleLoginUser} />;
-  }
-
   // ─── List-page navigation handlers ─────────────────────────────
   /** เปิดหน้าร่างเอกสารใหม่ */
   const handleCreateNew = (type: DocumentTypeCode) => {
@@ -516,7 +537,7 @@ export const App: React.FC = () => {
     if (editingDocId) {
       updateDocument(editingDocId, docType, fields);
     } else {
-      createDocument(docType, fields, currentUser?.fullName);
+      createDocument(docType, fields, currentUser?.fullName, currentUser?.id);
     }
     setAppView("list");
   };
@@ -526,47 +547,33 @@ export const App: React.FC = () => {
     setAppView("list");
   };
 
+  // ─── Login Guard: ผู้ใช้งานต้องเข้าสู่ระบบก่อนเข้าถึงเอกสาร ──────
+  if (!currentUser) {
+    return <AuthPage onLogin={handleLoginUser} />;
+  }
+
   return (
     <div className="app-container">
-      {/* 1. Top Global Navigation Header */}
+      {/* 1. Top Global Navigation Header: สีเขียวมรกตราชการตาม Mockup */}
       <header className="app-header no-print">
         <div className="header-left">
-          {/* Logo รูปหนังสือ พร้อมชื่อระบบ */}
           <button
             type="button"
             className="brand-badge-btn"
             onClick={() => setAppView("list")}
             title="คลิกเพื่อกลับสู่หน้ารายการหนังสือราชการ"
+            style={{ display: "flex", alignItems: "center", gap: "12px", background: "none", border: "none", cursor: "pointer" }}
           >
             <div className="brand-icon" title="ระบบงานสารบรรณ">
-              <svg viewBox="0 0 48 48" width="30" height="30" fill="none">
-                <path
-                  d="M6 37 C14 34, 22 36.5, 24 38.5 C26 36.5, 34 34, 42 37 L42 10 C34 7, 26 9.5, 24 11.5 C22 9.5, 14 7, 6 10 Z"
-                  fill="url(#headerBookGrad)"
-                  stroke="#38bdf8"
-                  strokeWidth="1.8"
-                  strokeLinejoin="round"
-                />
-                <path d="M24 11.5 L24 38.5" stroke="#bae6fd" strokeWidth="2.2" strokeLinecap="round" />
-                <path d="M10 16 C14 14.2, 18.5 15.5, 21 16.5" stroke="#f0f9ff" strokeWidth="1.3" strokeLinecap="round" opacity="0.9" />
-                <path d="M10 21 C14 19.2, 18.5 20.5, 21 21.5" stroke="#f0f9ff" strokeWidth="1.3" strokeLinecap="round" opacity="0.9" />
-                <path d="M10 26 C14 24.2, 18.5 25.5, 21 26.5" stroke="#f0f9ff" strokeWidth="1.3" strokeLinecap="round" opacity="0.9" />
-                <path d="M38 16 C34 14.2, 29.5 15.5, 27 16.5" stroke="#f0f9ff" strokeWidth="1.3" strokeLinecap="round" opacity="0.9" />
-                <path d="M38 21 C34 19.2, 29.5 20.5, 27 21.5" stroke="#f0f9ff" strokeWidth="1.3" strokeLinecap="round" opacity="0.9" />
-                <path d="M38 26 C34 24.2, 29.5 25.5, 27 26.5" stroke="#f0f9ff" strokeWidth="1.3" strokeLinecap="round" opacity="0.9" />
-                <path d="M22.5 12 L25.5 12 L25.5 42 L24 40 L22.5 42 Z" fill="#fbbf24" />
-                <defs>
-                  <linearGradient id="headerBookGrad" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
-                    <stop stopColor="#0284c7" />
-                    <stop offset="0.5" stopColor="#0369a1" />
-                    <stop offset="1" stopColor="#1e3a8a" />
-                  </linearGradient>
-                </defs>
-              </svg>
+              <img src="/book-logo.svg" alt="ระบบสารบรรณ" width="34" height="34" />
             </div>
-            <div className="brand-text-group">
-              <div className="brand-title">ระบบงานสารบรรณ</div>
-              <div className="brand-subtitle">องค์การบริหารส่วนจังหวัดปราจีนบุรี</div>
+            <div className="brand-text-group" style={{ textAlign: "left" }}>
+              <div className="brand-title" style={{ fontSize: "16px", fontWeight: 700, color: "#ffffff", letterSpacing: "0.2px" }}>
+                ระบบสารบรรณอิเล็กทรอนิกส์ <span style={{ fontSize: "13px", fontWeight: 400, opacity: 0.9 }}>(Sarabun Digital System)</span>
+              </div>
+              <div className="brand-subtitle" style={{ color: "#a7f3d0", fontSize: "12px" }}>
+                องค์การบริหารส่วนจังหวัดปราจีนบุรี (อบจ.ปราจีนบุรี)
+              </div>
             </div>
           </button>
 
@@ -576,78 +583,29 @@ export const App: React.FC = () => {
               display: "inline-flex",
               alignItems: "center",
               gap: "6px",
-              fontSize: "11.5px",
+              fontSize: "11px",
               fontWeight: 600,
-              padding: "4px 10px",
+              padding: "3px 9px",
               borderRadius: "20px",
-              backgroundColor: isApiOnline ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
-              color: isApiOnline ? "#34d399" : "#fbbf24",
-              border: isApiOnline ? "1px solid rgba(52, 211, 153, 0.3)" : "1px solid rgba(251, 191, 36, 0.3)",
+              backgroundColor: isApiOnline ? "rgba(16, 185, 129, 0.2)" : "rgba(245, 158, 11, 0.2)",
+              color: isApiOnline ? "#a7f3d0" : "#fef08a",
+              border: isApiOnline ? "1px solid rgba(167, 243, 208, 0.3)" : "1px solid rgba(254, 240, 138, 0.3)",
+              marginLeft: "6px",
             }}
-            title={
-              isApiOnline
-                ? "ฐานข้อมูล SQLite Backend ออนไลน์ (พอร์ต 3001) พร้อมจัดเก็บลงฐานข้อมูลส่วนกลาง"
-                : "ฐานข้อมูล Backend ออฟไลน์ - กำลังบันทึกข้อมูลใน LocalStorage ของเบราว์เซอร์อัตโนมัติ"
-            }
           >
             <span
               style={{
-                width: "7px",
-                height: "7px",
+                width: "6px",
+                height: "6px",
                 borderRadius: "50%",
                 backgroundColor: isApiOnline ? "#10b981" : "#f59e0b",
                 display: "inline-block",
               }}
             />
-            {isApiOnline ? "SQLite ออนไลน์" : "โหมดออฟไลน์"}
+            {isApiOnline ? "ระบบออนไลน์" : "โหมดออฟไลน์"}
           </div>
-
-          {appView !== "list" && (
-            <button
-              type="button"
-              className="editor-back-btn"
-              onClick={handleBackToList}
-              style={{ marginLeft: "14px" }}
-              title="กลับสู่หน้ารายการหนังสือ"
-            >
-              ← หน้ารายการหนังสือ
-            </button>
-          )}
         </div>
 
-        {/* ตรงกลาง: แสดงประเภทหนังสือหรือสถานะปัจจุบัน */}
-        <div className="header-center">
-          {appView === "list" && (
-            <div style={{ color: "#94a3b8", fontSize: "13px", fontWeight: 500, letterSpacing: "0.3px" }}>
-              📂 คลังหนังสือราชการอิเล็กทรอนิกส์
-            </div>
-          )}
-          {appView === "editor" && (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "5px 14px",
-                borderRadius: "20px",
-                backgroundColor: "rgba(255, 255, 255, 0.08)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                color: "#f8fafc",
-                fontSize: "13px",
-                fontWeight: 600,
-              }}
-            >
-              {docType === "memo" ? "📄 หนังสือภายใน (บันทึกข้อความ)" : "🏛️ หนังสือภายนอก"}
-            </div>
-          )}
-          {appView === "view" && (
-            <div style={{ color: "#38bdf8", fontSize: "13.5px", fontWeight: 600 }}>
-              🖨️ ตัวอย่างพิมพ์หน้าเต็ม (A4 Full Preview)
-            </div>
-          )}
-        </div>
-
-        {/* ปุ่มคำสั่งหลักด้านขวา */}
         <div className="header-right">
           {/* Action buttons ตามแต่ละมุมมอง */}
           {appView === "editor" && (
@@ -692,63 +650,193 @@ export const App: React.FC = () => {
             </>
           )}
 
-          {/* ข้อมูลสมาชิก / เข้าสู่ระบบ */}
+          {/* กระดิ่งแจ้งเตือนตามแบบในภาพ Mockup */}
+          <div
+            style={{
+              width: "34px",
+              height: "34px",
+              borderRadius: "50%",
+              backgroundColor: "rgba(255, 255, 255, 0.12)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#ffffff",
+              cursor: "pointer",
+              fontSize: "15px",
+            }}
+            title="การแจ้งเตือน"
+          >
+            🔔
+          </div>
+
+          {/* User profile dropdown button */}
           {currentUser && (
-            <div className="header-member-badge">
-              <button
-                type="button"
-                className="member-profile-chip"
-                onClick={() => {
-                  setAuthModalTab("profile");
-                  setIsAuthModalOpen(true);
-                }}
-                title={`คลิกเพื่อดู/แก้ไขข้อมูลสังกัด: ${currentUser.fullName} (${currentUser.division})`}
-              >
-                <span className="member-chip-icon">👤</span>
-                <span className="member-chip-name">{currentUser.fullName}</span>
-                <span className="member-chip-dept">
-                  {currentUser.division.replace("องค์การบริหารส่วนจังหวัด", "อบจ.")}
-                  {currentUser.section ? ` (${currentUser.section})` : ""}
-                </span>
-              </button>
-              <button
-                type="button"
-                className="member-logout-btn"
-                onClick={handleLogoutUser}
-                title="ออกจากระบบ"
+            <div
+              onClick={() => {
+                setPreviousView(appView === "signatories" || appView === "profile" ? previousView : (appView as any));
+                setAppView("profile");
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "4px 12px 4px 6px",
+                borderRadius: "20px",
+                backgroundColor: "rgba(255, 255, 255, 0.14)",
+                cursor: "pointer",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+              }}
+              title="คลิกเพื่อแก้ไขข้อมูลโปรไฟล์"
+            >
+              <div
                 style={{
-                  padding: "4px 8px",
-                  fontSize: "12px",
-                  borderRadius: "6px",
-                  border: "1px solid #e2e8f0",
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
                   backgroundColor: "#ffffff",
-                  color: "#64748b",
-                  cursor: "pointer",
+                  color: "#065f46",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "13px",
+                  fontWeight: 700,
                 }}
               >
-                ออกจากระบบ
-              </button>
+                {currentUser.fullName ? currentUser.fullName.charAt(0) : "👤"}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
+                <span style={{ fontSize: "13px", fontWeight: 600, color: "#ffffff", lineHeight: 1.2 }}>
+                  {currentUser.fullName}
+                </span>
+                <span style={{ fontSize: "11px", color: "#a7f3d0", lineHeight: 1.2 }}>
+                  {currentUser.position || currentUser.division}
+                </span>
+              </div>
             </div>
           )}
+
+          <button
+            type="button"
+            className="member-logout-btn"
+            onClick={handleLogoutUser}
+            title="ออกจากระบบ"
+            style={{
+              padding: "5px 10px",
+              fontSize: "12px",
+              borderRadius: "6px",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              backgroundColor: "rgba(0, 0, 0, 0.2)",
+              color: "#ffffff",
+              cursor: "pointer",
+            }}
+          >
+            ออกจากระบบ
+          </button>
         </div>
       </header>
 
-      {/* 2. Main Workspace */}
-      <main className="app-workspace">
+      {/* 2. App Body: Left Sidebar + Main Workspace (ตามภาพ Mockup) */}
+      <div className="app-body-container">
+        {/* Left Sidebar */}
+        <aside className="app-sidebar no-print">
+          <nav className="sidebar-nav">
+            <button
+              type="button"
+              className={`sidebar-nav-item ${appView === "list" ? "active" : ""}`}
+              onClick={() => setAppView("list")}
+              title="คลังหนังสือราชการของฉัน"
+            >
+              <span className="sidebar-nav-icon">🏠</span>
+              <span className="sidebar-nav-label">หน้าหลัก</span>
+            </button>
 
-        {/* ─── หน้ารายการเอกสาร (list view) ─── */}
-        {appView === "list" && (
-          <DocumentListPage
-            currentUser={currentUser}
-            onCreateNew={handleCreateNew}
-            onEditDoc={handleEditDoc}
-            onViewDoc={handleViewDoc}
-          />
-        )}
+            <button
+              type="button"
+              className={`sidebar-nav-item ${appView === "editor" ? "active" : ""}`}
+              onClick={() => handleCreateNew("memo")}
+              title="ร่างหนังสือราชการใหม่"
+            >
+              <span className="sidebar-nav-icon">📄</span>
+              <span className="sidebar-nav-label">สร้างเอกสาร</span>
+            </button>
 
-        {/* ─── หน้าร่าง+แก้ไข (editor view) หรือ หน้าดู/พิมพ์ (view view) ─── */}
-        {appView !== "list" && (
-          <>
+            <button
+              type="button"
+              className={`sidebar-nav-item ${appView === "signatories" ? "active" : ""}`}
+              onClick={() => {
+                setPreviousView(appView === "signatories" || appView === "profile" ? previousView : (appView as any));
+                setAppView("signatories");
+              }}
+              title="จัดการรายชื่อผู้ลงนาม"
+            >
+              <span className="sidebar-nav-icon">✍️</span>
+              <span className="sidebar-nav-label">ผู้ลงนาม</span>
+            </button>
+
+            <button
+              type="button"
+              className={`sidebar-nav-item ${appView === "profile" ? "active" : ""}`}
+              onClick={() => {
+                setPreviousView(appView === "signatories" || appView === "profile" ? previousView : (appView as any));
+                setAppView("profile");
+              }}
+              title="แก้ไขข้อมูลโปรไฟล์ / สังกัด"
+            >
+              <span className="sidebar-nav-icon">⚙️</span>
+              <span className="sidebar-nav-label">การตั้งค่า</span>
+            </button>
+          </nav>
+
+          {/* Sidebar Footer User Card */}
+          <div className="sidebar-user-card">
+            <div className="sidebar-user-avatar">
+              {currentUser.fullName ? currentUser.fullName.charAt(0) : "👤"}
+            </div>
+            <div className="sidebar-user-info">
+              <div className="sidebar-user-name">{currentUser.fullName}</div>
+              <div className="sidebar-user-dept">
+                {currentUser.division.replace("องค์การบริหารส่วนจังหวัด", "อบจ.")}
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Workspace */}
+        <main className="app-workspace" style={{ flex: 1, overflowY: "auto" }}>
+
+          {/* ─── หน้ารายการเอกสาร (list view) ─── */}
+          {appView === "list" && (
+            <DocumentListPage
+              currentUser={currentUser}
+              onCreateNew={handleCreateNew}
+              onEditDoc={handleEditDoc}
+              onViewDoc={handleViewDoc}
+            />
+          )}
+
+          {/* ─── หน้าแก้ไขโปรไฟล์ (profile view) ─── */}
+          {appView === "profile" && (
+            <ProfilePage
+              currentUser={currentUser}
+              onUpdate={(up) => {
+                setCurrentUser(up);
+                handleUpdateProfile(up);
+              }}
+              onBack={() => setAppView(previousView || "list")}
+            />
+          )}
+
+          {/* ─── หน้าจัดการผู้ลงนาม (signatories view) ─── */}
+          {appView === "signatories" && (
+            <SignatoryPage
+              currentUser={currentUser}
+              onBack={() => setAppView(previousView || "list")}
+            />
+          )}
+
+          {/* ─── หน้าร่าง+แก้ไข (editor view) หรือ หน้าดู/พิมพ์ (view view) ─── */}
+          {(appView === "editor" || appView === "view") && (
+            <>
             {/* คอลัมน์ซ้าย: ฟอร์มพิมพ์และร่างเนื้อหา (ขยายกว้างขวาง สบายตา ปรับขนาดได้) */}
             <section
               className="editor-panel no-print"
@@ -812,6 +900,10 @@ export const App: React.FC = () => {
                 onOpenAuth={(t) => {
                   setAuthModalTab(t || "login");
                   setIsAuthModalOpen(true);
+                }}
+                onManageSignatories={() => {
+                  setPreviousView("editor");
+                  setAppView("signatories");
                 }}
               />
             </section>
@@ -917,7 +1009,8 @@ export const App: React.FC = () => {
           </>
         )}
 
-      </main>
+        </main>
+      </div>
 
       {/* 3. หน้าต่างระบบสมาชิก (เข้าสู่ระบบ / สมัครใหม่ / จัดการสังกัด) */}
       <AuthModal

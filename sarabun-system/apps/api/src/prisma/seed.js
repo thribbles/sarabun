@@ -46,6 +46,86 @@ async function main() {
     });
   }
 
+  // 4. Demo Users
+  const users = [
+    {
+      id: "mem-nayok",
+      username: "nayok",
+      passwordHash: "123",
+      fullName: "ฮนมะ ยูจิโจ",
+      position: "นายกองค์การบริหารส่วนจังหวัดปราจีนบุรี",
+      departmentId: "dept-pao",
+      roleId: 1,
+    },
+    {
+      id: "mem-edu",
+      username: "edu",
+      passwordHash: "123",
+      fullName: "เอดาจิม่า เฮฮาจิ",
+      position: "ผู้อำนวยการกองการศึกษา ศาสนา และวัฒนธรรม",
+      departmentId: "dept-pao",
+      roleId: 2,
+    },
+    {
+      id: "mem-yotta",
+      username: "yotta",
+      passwordHash: "123",
+      fullName: "มาสค์ไรเดอร์ ดีเคด",
+      position: "ผู้อำนวยการกองยุทธศาสตร์และงบประมาณ",
+      departmentId: "dept-plan",
+      roleId: 2,
+    },
+    {
+      id: "mem-admin",
+      username: "admin",
+      passwordHash: "123",
+      fullName: "นาย คิระ ยามาโตะ",
+      position: "หัวหน้าสำนักปลัด อบจ.ปราจีนบุรี",
+      departmentId: "dept-admin",
+      roleId: 1,
+    },
+    {
+      id: "mem-pasadu",
+      username: "pasadu",
+      passwordHash: "123",
+      fullName: "นางสาว โจเซพ โจสตา",
+      position: "ผู้อำนวยการกองพัสดุและทรัพย์สิน",
+      departmentId: "dept-pao",
+      roleId: 2,
+    },
+    {
+      id: "mem-chang",
+      username: "chang",
+      passwordHash: "123",
+      fullName: "นาย เอโดงาว่า โคนัน",
+      position: "ผู้อำนวยการกองช่าง",
+      departmentId: "dept-pao",
+      roleId: 2,
+    },
+    {
+      id: "mem-klang",
+      username: "klang",
+      passwordHash: "123",
+      fullName: "นางสาว เฟริน จุบจุบ",
+      position: "ผู้อำนวยการกองคลัง",
+      departmentId: "dept-pao",
+      roleId: 2,
+    },
+  ];
+  for (const u of users) {
+    await prisma.user.upsert({
+      where: { username: u.username },
+      update: {
+        id: u.id,
+        fullName: u.fullName,
+        position: u.position,
+        departmentId: u.departmentId,
+        roleId: u.roleId,
+      },
+      create: u,
+    });
+  }
+
   console.log("Database seeded successfully!");
 }
 

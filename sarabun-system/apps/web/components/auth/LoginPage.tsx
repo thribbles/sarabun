@@ -3,9 +3,19 @@ import { UserMember, loadAllMembers } from "../../src/authTypes";
 
 interface LoginPageProps {
   onLogin: (user: UserMember) => void;
+  isLogtoConfigured: boolean;
+  onOpenLogtoSettings: () => void;
+  onLogtoSignIn: () => void;
+  logtoLoading?: boolean;
 }
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({
+  onLogin,
+  isLogtoConfigured,
+  onOpenLogtoSettings,
+  onLogtoSignIn,
+  logtoLoading = false,
+}) => {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -19,7 +29,26 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const found = members.find(
       (m) =>
         m.username.toLowerCase() === trimmedUser ||
-        (m.username.toLowerCase() === "nayok" && (trimmedUser === "นายก" || trimmedUser === "nayok"))
+        (m.username.toLowerCase() === "nayok" &&
+          (trimmedUser === "นายก" ||
+            trimmedUser === "nayok" ||
+            trimmedUser === "ฮนมะ" ||
+            trimmedUser === "ฮนมะ ยูจิโจ" ||
+            trimmedUser === "ฮนมะ ยูจิโร่")) ||
+        (m.username.toLowerCase() === "edu" &&
+          (trimmedUser === "edu" ||
+            trimmedUser === "เอดาจิมา" ||
+            trimmedUser === "เอดาจิม่า" ||
+            trimmedUser === "เอดาจิม่า เฮฮาจิ" ||
+            trimmedUser === "กองการศึกษา")) ||
+        (m.username.toLowerCase() === "yotta" &&
+          (trimmedUser === "yotta" ||
+            trimmedUser === "ดีเคด" ||
+            trimmedUser === "ดีเคท" ||
+            trimmedUser === "มาสไรเดอ" ||
+            trimmedUser === "มาสไรเดอ ดีเคท" ||
+            trimmedUser === "มาสค์ไรเดอร์ ดีเคด" ||
+            trimmedUser === "กองยุทธศาสตร์"))
     );
 
     if (!found) {
@@ -56,7 +85,97 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           </div>
         </div>
 
-        {/* Form Login */}
+        {/* ส่วนล็อกอินด้วย Logto SSO */}
+        <div className="login-logto-section" style={{ marginBottom: "20px" }}>
+          <button
+            type="button"
+            className="login-logto-btn"
+            onClick={isLogtoConfigured ? onLogtoSignIn : onOpenLogtoSettings}
+            disabled={logtoLoading}
+            style={{
+              width: "100%",
+              padding: "13px 18px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "12px",
+              backgroundColor: isLogtoConfigured ? "#4f46e5" : "#6366f1",
+              backgroundImage: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)",
+              color: "#ffffff",
+              border: "none",
+              borderRadius: "10px",
+              fontSize: "15px",
+              fontWeight: 700,
+              cursor: logtoLoading ? "wait" : "pointer",
+              boxShadow: "0 4px 12px rgba(79, 70, 229, 0.35)",
+              transition: "all 0.2s ease",
+            }}
+          >
+            <span style={{ fontSize: "18px" }}>🔐</span>
+            <span>
+              {logtoLoading
+                ? "กำลังนำทางสู่ Logto..."
+                : isLogtoConfigured
+                ? "เข้าสู่ระบบด้วย Logto (SSO)"
+                : "ตั้งค่าเชื่อมต่อ Logto เพื่อเข้าสู่ระบบ"}
+            </span>
+          </button>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginTop: "8px",
+              padding: "0 4px",
+              fontSize: "12px",
+              color: "#64748b",
+            }}
+          >
+            <span>
+              {isLogtoConfigured ? (
+                <span style={{ color: "#16a34a", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  ● พร้อมเชื่อมต่อ Logto
+                </span>
+              ) : (
+                <span style={{ color: "#d97706" }}>ยังไม่ได้ระบุ Logto Endpoint</span>
+              )}
+            </span>
+            <button
+              type="button"
+              onClick={onOpenLogtoSettings}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#4f46e5",
+                fontSize: "12px",
+                cursor: "pointer",
+                padding: "2px 6px",
+                textDecoration: "underline",
+                fontWeight: 600,
+              }}
+            >
+              ⚙️ ตั้งค่า Logto
+            </button>
+          </div>
+        </div>
+
+        {/* เส้นคั่นตัวเลือก */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            margin: "18px 0 20px",
+            color: "#94a3b8",
+            fontSize: "13px",
+          }}
+        >
+          <div style={{ flex: 1, height: "1px", backgroundColor: "#e2e8f0" }} />
+          <span style={{ padding: "0 12px", fontWeight: 500 }}>หรือเข้าสู่ระบบด้วยรหัสผ่าน</span>
+          <div style={{ flex: 1, height: "1px", backgroundColor: "#e2e8f0" }} />
+        </div>
+
+        {/* Form Login ปกติ */}
         <form onSubmit={handleLogin} className="login-form">
           {error && <div className="login-alert-error">{error}</div>}
 
@@ -69,7 +188,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               onChange={(e) => setUsername(e.target.value)}
               placeholder="กรอกชื่อผู้ใช้งาน เช่น nayok, admin, chang"
               required
-              autoFocus
             />
           </div>
 
@@ -97,7 +215,9 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           </div>
           <div className="login-demo-chips">
             {[
-              { u: "nayok", label: "นายก อบจ. (nayok)" },
+              { u: "nayok", label: "ฮนมะ ยูจิโจ (นายก อบจ.)" },
+              { u: "edu", label: "เอดาจิม่า เฮฮาจิ (ผอ.กองการศึกษา)" },
+              { u: "yotta", label: "มาสค์ไรเดอร์ ดีเคด (ผอ.กองยุทธศาสตร์)" },
               { u: "admin", label: "สำนักปลัด (admin)" },
               { u: "chang", label: "กองช่าง (chang)" },
               { u: "pasadu", label: "กองพัสดุฯ (pasadu)" },

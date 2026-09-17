@@ -13,6 +13,24 @@ import {
 } from "./paginationHelper";
 import { convertToThaiNumerals, DEFAULT_BOTTOM_SLOGAN } from "../../src/sampleData";
 
+/**
+ * แยกวันที่ราชการไทย เช่น "๑๗ กันยายน ๒๕๖๙" เป็น 2 ส่วน:
+ * - dayPart: "๑๗ " (เลขวันที่ + เว้นวรรค)
+ * - monthYearPart: "กันยายน ๒๕๖๙" (ชื่อเดือน + ปี)
+ * สำหรับจัดวางวันที่หนังสือภายนอกตามระเบียบสารบรรณ:
+ * "ตัวอักษรแรกของชื่อเดือนต้องตรงกับเท้าขวาของตราครุฑ"
+ */
+function splitThaiDate(date: string): { dayPart: string; monthYearPart: string } {
+  const trimmed = date.trim();
+  // หาช่องว่างตัวแรก (หลังเลขวันที่)
+  const firstSpace = trimmed.indexOf(" ");
+  if (firstSpace === -1) return { dayPart: "", monthYearPart: trimmed };
+  return {
+    dayPart: trimmed.slice(0, firstSpace + 1), // "๑๗ "
+    monthYearPart: trimmed.slice(firstSpace + 1), // "กันยายน ๒๕๖๙"
+  };
+}
+
 export type DocumentTypeCode = "memo" | "external";
 
 export type PrintFields = {
@@ -349,8 +367,10 @@ export const PrintPage: React.FC<{
                   <div className="agency-address field-val">{fields.agencyAddress || ""}</div>
                 </div>
               </div>
+              {/* วันที่: ตัวแรกของชื่อเดือนต้องตรงกับเท้าขวาของตราครุฑ (กึ่งกลางหน้า) */}
               <div className="ext-date-row">
-                <span className="field-val">{fields.date || ""}</span>
+                <span className="ext-date-day">{splitThaiDate(fields.date || "").dayPart}</span>
+                <span className="field-val">{splitThaiDate(fields.date || "").monthYearPart}</span>
               </div>
               <div className="field-row">
                 <span className="field-label">เรื่อง</span>
@@ -478,8 +498,10 @@ export const PrintPage: React.FC<{
                         </div>
                       </div>
 
+                      {/* วันที่: ตัวแรกของชื่อเดือนต้องตรงกับเท้าขวาของตราครุฑ (กึ่งกลางหน้า) */}
                       <div className="ext-date-row">
-                        <span className="field-val">{fields.date || ""}</span>
+                        <span className="ext-date-day">{splitThaiDate(fields.date || "").dayPart}</span>
+                        <span className="field-val">{splitThaiDate(fields.date || "").monthYearPart}</span>
                       </div>
 
                       <div className="field-row">
@@ -540,10 +562,12 @@ export const PrintPage: React.FC<{
                   </>
                 )}
 
-                {/* 4. ข้อความด้านล่างของหนังสือราชการ (ตามนโยบายกระทรวงมหาดไทย/อปท.) */}
-                <div className="page-bottom-slogan">
-                  {fields.bottomSlogan || DEFAULT_BOTTOM_SLOGAN}
-                </div>
+                {/* 4. ข้อความด้านล่างของหนังสือราชการ (หากมีหน้า ๒ ให้ไปหน้า ๒ หน้าแรกไม่ต้องมี) */}
+                {((pages.length === 1 && page.pageNumber === 1) || (pages.length > 1 && page.pageNumber === 2)) && (
+                  <div className="page-bottom-slogan">
+                    {fields.bottomSlogan || DEFAULT_BOTTOM_SLOGAN}
+                  </div>
+                )}
               </div>
             </div>
           );
