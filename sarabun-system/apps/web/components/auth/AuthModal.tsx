@@ -132,12 +132,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     onClose();
   };
 
-  // เข้าสู่ระบบแบบด่วน (1-Click Demo Login)
-  const handleQuickLogin = (user: UserMember) => {
-    onLogin(user);
-    onClose();
-  };
-
   // ดำเนินการสมัครสมาชิกใหม่
   const handleRegisterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -339,37 +333,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </button>
                 </div>
               </form>
-
-              {/* Quick Demo Login Chips */}
-              <div className="auth-quick-section">
-                <div className="auth-quick-title">
-                  ⚡ เลือกเข้าสู่ระบบด่วนด้วยบัญชีตัวอย่างประจำกอง (คลิกเพื่อสลับทันที):
-                </div>
-                <div className="auth-quick-grid">
-                  {members.map((m) => {
-                    const isCurrent = currentUser?.id === m.id;
-                    return (
-                      <button
-                        key={m.id}
-                        type="button"
-                        className={`auth-quick-card ${isCurrent ? "active-current" : ""}`}
-                        onClick={() => handleQuickLogin(m)}
-                        title={`เข้าสู่ระบบเป็น ${m.fullName} (${m.division})`}
-                      >
-                        <div className="quick-card-top">
-                          <span className="quick-avatar">👤</span>
-                          <span className="quick-username">@{m.username}</span>
-                          {isCurrent && <span className="quick-tag">เข้าสู่อยู่</span>}
-                        </div>
-                        <div className="quick-name">{m.fullName}</div>
-                        <div className="quick-dept">
-                          {m.division} {m.section ? `(${m.section})` : ""}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
             </div>
           )}
 

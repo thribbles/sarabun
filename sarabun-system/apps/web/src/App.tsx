@@ -696,14 +696,20 @@ export const App: React.FC = () => {
               </button>
               <button
                 type="button"
-                className="member-switch-btn"
-                onClick={() => {
-                  setAuthModalTab("login");
-                  setIsAuthModalOpen(true);
+                className="member-logout-btn"
+                onClick={handleLogoutUser}
+                title="ออกจากระบบ"
+                style={{
+                  padding: "4px 8px",
+                  fontSize: "12px",
+                  borderRadius: "6px",
+                  border: "1px solid #e2e8f0",
+                  backgroundColor: "#ffffff",
+                  color: "#64748b",
+                  cursor: "pointer",
                 }}
-                title="สลับบัญชีผู้ใช้หรือเข้าสู่ระบบด้วยบัญชีอื่น"
               >
-                สลับ
+                ออกจากระบบ
               </button>
             </div>
           ) : (
