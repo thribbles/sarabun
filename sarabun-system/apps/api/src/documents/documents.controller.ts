@@ -38,21 +38,6 @@ export class DocumentsController {
     return this.documentsService.remove(id);
   }
 
-  @Post(":id/submit-review")
-  submitReview(@Param("id") id: string) {
-    return this.documentsService.transition(id, "REVIEW");
-  }
-
-  @Post(":id/approve")
-  approve(@Param("id") id: string) {
-    return this.documentsService.transition(id, "APPROVED");
-  }
-
-  @Post(":id/reject")
-  reject(@Param("id") id: string) {
-    return this.documentsService.transition(id, "DRAFT");
-  }
-
   @Post(":id/print")
   print(@Param("id") id: string) {
     return this.documentsService.logAction(id, "PRINT");

@@ -45,8 +45,7 @@ export const App: React.FC = () => {
   const [zoom, setZoom] = useState<number>(0.85);
   const [showMarginGuide, setShowMarginGuide] = useState<boolean>(false);
   const [showDottedLines, setShowDottedLines] = useState<boolean>(true);
-  const [saveStatus, setSaveStatus] = useState<string>("บันทึกร่างแล้ว");
-  const [docStatus, setDocStatus] = useState<string>("DRAFT");
+  const [saveStatus, setSaveStatus] = useState<string>("บันทึกแล้ว");
   const [isApiOnline, setIsApiOnline] = useState<boolean | null>(null);
 
   // ตรวจสอบสถานะการเชื่อมต่อ Backend API (NestJS + SQLite)
@@ -509,7 +508,6 @@ export const App: React.FC = () => {
     }
     setDocType(type);
     setFields(tpl);
-    setDocStatus("DRAFT");
     setEditingDocId(null);
     setAppView("editor");
   };
@@ -518,7 +516,6 @@ export const App: React.FC = () => {
   const handleEditDoc = (doc: SavedDocument) => {
     setDocType(doc.docType);
     setFields({ ...doc.fields });
-    setDocStatus(doc.status || "DRAFT");
     setEditingDocId(doc.id);
     setAppView("editor");
   };
@@ -527,7 +524,6 @@ export const App: React.FC = () => {
   const handleViewDoc = (doc: SavedDocument) => {
     setDocType(doc.docType);
     setFields({ ...doc.fields });
-    setDocStatus(doc.status || "DRAFT");
     setEditingDocId(doc.id);
     setAppView("view");
   };
@@ -535,9 +531,9 @@ export const App: React.FC = () => {
   /** บันทึกเอกสารลง store แล้วกลับหน้ารายการ */
   const handleSaveAndGoList = () => {
     if (editingDocId) {
-      updateDocument(editingDocId, docType, fields, docStatus);
+      updateDocument(editingDocId, docType, fields);
     } else {
-      createDocument(docType, fields, currentUser?.fullName, docStatus);
+      createDocument(docType, fields, currentUser?.fullName);
     }
     setAppView("list");
   };
@@ -839,32 +835,6 @@ export const App: React.FC = () => {
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  {/* ตัวเลือกสถานะเอกสาร */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                    <span style={{ fontSize: "11.5px", color: "var(--text-muted)" }}>สถานะ:</span>
-                    <select
-                      value={docStatus}
-                      onChange={(e) => setDocStatus(e.target.value)}
-                      style={{
-                        padding: "2px 8px",
-                        fontSize: "12px",
-                        borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
-                        backgroundColor: "#ffffff",
-                        color: "#1e293b",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                      title="เลือกสถานะเอกสาร (ร่าง, รอตรวจสอบ, อนุมัติแล้ว, พิมพ์แล้ว)"
-                    >
-                      <option value="DRAFT">📝 ร่างเอกสาร</option>
-                      <option value="REVIEW">🔍 รอตรวจสอบ</option>
-                      <option value="APPROVED">✅ อนุมัติแล้ว</option>
-                      <option value="PRINTED">🖨️ พิมพ์แล้ว</option>
-                      <option value="CANCELLED">❌ ยกเลิก</option>
-                    </select>
-                  </div>
-
                   <div className="save-indicator">
                     <span className="save-dot" />
                     <span>{saveStatus}</span>

@@ -151,19 +151,3 @@ export async function apiDeleteDocument(id: string): Promise<boolean> {
   });
   return res.ok;
 }
-
-/**
- * เปลี่ยนสถานะเอกสาร (submit-review, approve, reject)
- */
-export async function apiTransitionDocument(
-  id: string,
-  action: "submit-review" | "approve" | "reject" | "print"
-): Promise<ApiDocument> {
-  const res = await fetchWithFallback(`/documents/${id}/${action}`, {
-    method: "POST",
-  });
-  if (!res.ok) {
-    throw new Error(`Failed to perform ${action}: ${res.statusText}`);
-  }
-  return res.json();
-}

@@ -4,7 +4,6 @@ import {
   loadDocuments,
   deleteDocument,
   docTypeLabel,
-  docStatusMeta,
   formatThaiDate,
   syncDocumentsFromApi,
 } from "../../src/documentStore";
@@ -26,7 +25,6 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
   const [docs, setDocs] = useState<SavedDocument[]>(() => loadDocuments());
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState<"all" | DocumentTypeCode>("all");
-  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [isOnline, setIsOnline] = useState<boolean | null>(null);
@@ -60,7 +58,6 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
 
   const filtered = docs.filter((d) => {
     const matchType = filterType === "all" || d.docType === filterType;
-    const matchStatus = filterStatus === "all" || (d.status || "DRAFT") === filterStatus;
     const q = search.toLowerCase();
     const matchSearch =
       !q ||
@@ -69,7 +66,7 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
       (d.fields?.to || "").toLowerCase().includes(q) ||
       (d.fields?.department || "").toLowerCase().includes(q) ||
       (d.createdBy || "").toLowerCase().includes(q);
-    return matchType && matchStatus && matchSearch;
+    return matchType && matchSearch;
   });
 
   return (
@@ -174,27 +171,6 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
         </div>
 
         <div className="doclist-toolbar-right">
-          {/* สถานะเอกสาร */}
-          <div className="doclist-filter-tabs">
-            {[
-              { id: "all", label: "ทุกสถานะ" },
-              { id: "DRAFT", label: "ร่าง" },
-              { id: "REVIEW", label: "รอตรวจ" },
-              { id: "APPROVED", label: "อนุมัติ" },
-              { id: "PRINTED", label: "พิมพ์แล้ว" },
-            ].map((st) => (
-              <button
-                key={st.id}
-                type="button"
-                className={`doclist-filter-tab ${filterStatus === st.id ? "active" : ""}`}
-                onClick={() => setFilterStatus(st.id)}
-                style={{ fontSize: "12px", padding: "4px 8px" }}
-              >
-                {st.label}
-              </button>
-            ))}
-          </div>
-
           {/* ประเภทเอกสาร */}
           <div className="doclist-filter-tabs">
             {(["all", "memo", "external"] as const).map((t) => (
@@ -240,7 +216,7 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
           <div className="doclist-empty-sub">
             {docs.length === 0
               ? "กดปุ่ม \"+ หนังสือภายใน\" หรือ \"+ หนังสือภายนอก\" เพื่อเริ่มร่างหนังสือ"
-              : "ลองเปลี่ยนคำค้นหาหรือตัวกรองประเภท/สถานะ"}
+              : "ลองเปลี่ยนคำค้นหาหรือตัวกรองประเภท"}
           </div>
           {docs.length === 0 && (
             <div className="doclist-empty-actions">
@@ -263,7 +239,6 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
               <tr>
                 <th style={{ width: "45px", textAlign: "center" }}>ลำดับ</th>
                 <th style={{ width: "105px", textAlign: "center" }}>ประเภท</th>
-                <th style={{ width: "95px", textAlign: "center" }}>สถานะ</th>
                 <th style={{ width: "135px" }}>เลขที่หนังสือ</th>
                 <th>เรื่อง / รายละเอียด</th>
                 <th style={{ width: "120px" }}>วันที่หนังสือ</th>
@@ -273,7 +248,6 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
             </thead>
             <tbody>
               {filtered.map((doc, idx) => {
-                const statusMeta = docStatusMeta(doc.status);
                 return (
                   <React.Fragment key={doc.id}>
                     <tr className="doclist-row">
@@ -283,21 +257,6 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
                       <td style={{ textAlign: "center" }}>
                         <span className={`doccard-type-badge ${doc.docType === "memo" ? "badge-memo" : "badge-external"}`}>
                           {doc.docType === "memo" ? "📄 ภายใน" : "🏛️ ภายนอก"}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: "center" }}>
-                        <span
-                          style={{
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            padding: "2px 8px",
-                            borderRadius: "12px",
-                            backgroundColor: statusMeta.bg,
-                            color: statusMeta.color,
-                            display: "inline-block",
-                          }}
-                        >
-                          {statusMeta.label}
                         </span>
                       </td>
                       <td>
@@ -396,27 +355,12 @@ export const DocumentListPage: React.FC<DocumentListPageProps> = ({
       {filtered.length > 0 && viewMode === "grid" && (
         <div className="doclist-grid">
           {filtered.map((doc) => {
-            const statusMeta = docStatusMeta(doc.status);
             return (
               <div key={doc.id} className="doccard">
                 <div className="doccard-header">
-                  <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-                    <span className={`doccard-type-badge ${doc.docType === "memo" ? "badge-memo" : "badge-external"}`}>
-                      {doc.docType === "memo" ? "📄 บันทึกข้อความ" : "🏛️ หนังสือภายนอก"}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        padding: "2px 8px",
-                        borderRadius: "12px",
-                        backgroundColor: statusMeta.bg,
-                        color: statusMeta.color,
-                      }}
-                    >
-                      {statusMeta.label}
-                    </span>
-                  </div>
+                  <span className={`doccard-type-badge ${doc.docType === "memo" ? "badge-memo" : "badge-external"}`}>
+                    {doc.docType === "memo" ? "📄 บันทึกข้อความ" : "🏛️ หนังสือภายนอก"}
+                  </span>
                   <span className="doccard-date">{formatThaiDate(doc.updatedAt)}</span>
                 </div>
 

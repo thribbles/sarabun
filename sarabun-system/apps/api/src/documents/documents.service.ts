@@ -2,14 +2,6 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateDocumentDto, UpdateDocumentDto } from "./dto";
 
-const VALID_TRANSITIONS: Record<string, string[]> = {
-  DRAFT: ["REVIEW", "CANCELLED"],
-  REVIEW: ["APPROVED", "DRAFT", "CANCELLED"],
-  APPROVED: ["PRINTED", "CANCELLED"],
-  PRINTED: [],
-  CANCELLED: [],
-};
-
 @Injectable()
 export class DocumentsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -99,20 +91,6 @@ export class DocumentsService {
   async remove(id: string) {
     await this.prisma.document.delete({ where: { id } });
     return { deleted: true };
-  }
-
-  async transition(id: string, target: string) {
-    const doc = await this.findOne(id);
-    const allowed = VALID_TRANSITIONS[doc.status] ?? [];
-    if (!allowed.includes(target)) {
-      throw new Error(`Cannot transition from ${doc.status} to ${target}`);
-    }
-    const updated = await this.prisma.document.update({
-      where: { id },
-      data: { status: target },
-    });
-    await this.logAction(id, target === "APPROVED" ? "APPROVE" : "UPDATE");
-    return this.formatDoc(updated);
   }
 
   async logAction(documentId: string, action: string) {
