@@ -10,7 +10,13 @@
 
 ---
 
-![ระบบจัดทำหนังสือราชการอิเล็กทรอนิกส์](docs/images/sarabun_preview.jpg)
+### 🖥️ ภาพหน้าจอระบบจริง (Application Screenshots)
+
+#### 1. หน้ารายการหนังสือราชการและคลังเอกสาร (Document List & Repository)
+![หน้ารายการคลังหนังสือราชการ](docs/images/sarabun_preview.png)
+
+#### 2. หน้าแก้ไขและพรีวิวตัวอย่างพิมพ์ A4 ควบคู่แบบเรียลไทม์ (Live Editor & A4 Print Preview)
+![หน้าแก้ไขและพรีวิว A4](docs/images/sarabun_editor_preview.png)
 
 ---
 

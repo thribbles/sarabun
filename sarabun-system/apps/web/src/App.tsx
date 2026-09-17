@@ -18,6 +18,7 @@ import {
   buildDepartmentString,
 } from "./authTypes";
 import { AuthModal } from "../components/auth/AuthModal";
+import { LoginPage } from "../components/auth/LoginPage";
 import { DocumentListPage } from "../components/list/DocumentListPage";
 import {
   SavedDocument,
@@ -466,27 +467,9 @@ export const App: React.FC = () => {
   };
 
   // ล้างข้อมูลเพื่อร่างใหม่
-  const handleReset = () => {
-    if (confirm("คุณต้องการล้างข้อมูลเพื่อเริ่มร่างเอกสารใหม่ใช่หรือไม่?")) {
-      setFields({
-        documentNo: currentUser?.docPrefix || "",
-        date: getTodayThaiOfficialDate(),
-        subject: "",
-        to: "",
-        body: "",
-        signerName: currentUser ? `(${currentUser.fullName})` : "",
-        signerPosition: currentUser ? currentUser.position : "",
-        department: currentUser ? buildDepartmentString(currentUser) : "",
-        agencyTop: "องค์การบริหารส่วนจังหวัดปราจีนบุรี",
-        agencyAddress: "๙๙๙ หมู่ ๑ ตำบลไม้เค็ด อำเภอเมืองปราจีนบุรี จังหวัดปราจีนบุรี ๒๕๐๐๐",
-        reference: "",
-        enclosure: "",
-        footerOffice: currentUser
-          ? `${currentUser.division}\n${currentUser.phone}\nwww.prachinpao.go.th`
-          : "",
-      });
-    }
-  };
+  if (!currentUser) {
+    return <LoginPage onLogin={handleLoginUser} />;
+  }
 
   // ─── List-page navigation handlers ─────────────────────────────
   /** เปิดหน้าร่างเอกสารใหม่ */
@@ -619,64 +602,98 @@ export const App: React.FC = () => {
             {isApiOnline ? "SQLite ออนไลน์" : "โหมดออฟไลน์"}
           </div>
 
-          {/* Navigation Bar ด้านบนแบบเด่นชัด */}
-          <nav className="header-main-nav">
+          {appView !== "list" && (
             <button
               type="button"
-              className={`header-nav-btn ${appView === "list" ? "active" : ""}`}
-              onClick={() => setAppView("list")}
-              title="หน้ารายการหนังสือราชการทั้งหมด"
+              className="editor-back-btn"
+              onClick={handleBackToList}
+              style={{ marginLeft: "14px" }}
+              title="กลับสู่หน้ารายการหนังสือ"
             >
-              <span className="nav-icon">📂</span>
-              <span className="nav-label">รายการหนังสือ</span>
+              ← หน้ารายการหนังสือ
             </button>
-            <button
-              type="button"
-              className={`header-nav-btn ${appView === "editor" ? "active" : ""}`}
-              onClick={() => setAppView("editor")}
-              title="หน้าร่างและแก้ไขข้อความ"
-            >
-              <span className="nav-icon">✍️</span>
-              <span className="nav-label">ร่าง / แก้ไข</span>
-            </button>
-            <button
-              type="button"
-              className={`header-nav-btn ${appView === "view" ? "active" : ""}`}
-              onClick={() => setAppView("view")}
-              title="หน้าดูตัวอย่างและพิมพ์เอกสาร A4"
-            >
-              <span className="nav-icon">🖨️</span>
-              <span className="nav-label">ตัวอย่าง / พิมพ์</span>
-            </button>
-          </nav>
+          )}
         </div>
 
-        {/* ตรงกลาง: สลับประเภทหนังสือ (แสดงเสมอหรือเด่นขึ้น) */}
+        {/* ตรงกลาง: แสดงประเภทหนังสือหรือสถานะปัจจุบัน */}
         <div className="header-center">
-          <div className="type-tabs">
-            <button
-              type="button"
-              className={`type-tab-btn ${docType === "memo" ? "active" : ""}`}
-              onClick={() => handleTypeChange("memo")}
-              title="สลับเป็นหนังสือภายใน (บันทึกข้อความ)"
+          {appView === "list" && (
+            <div style={{ color: "#94a3b8", fontSize: "13px", fontWeight: 500, letterSpacing: "0.3px" }}>
+              📂 คลังหนังสือราชการอิเล็กทรอนิกส์
+            </div>
+          )}
+          {appView === "editor" && (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "5px 14px",
+                borderRadius: "20px",
+                backgroundColor: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+                color: "#f8fafc",
+                fontSize: "13px",
+                fontWeight: 600,
+              }}
             >
-              📄 หนังสือภายใน (in01)
-            </button>
-            <button
-              type="button"
-              className={`type-tab-btn ${docType === "external" ? "active" : ""}`}
-              onClick={() => handleTypeChange("external")}
-              title="สลับเป็นหนังสือภายนอก (ครุฑใหญ่)"
-            >
-              🏛️ หนังสือภายนอก (03)
-            </button>
-          </div>
+              {docType === "memo" ? "📄 หนังสือภายใน (บันทึกข้อความ)" : "🏛️ หนังสือภายนอก"}
+            </div>
+          )}
+          {appView === "view" && (
+            <div style={{ color: "#38bdf8", fontSize: "13.5px", fontWeight: 600 }}>
+              🖨️ ตัวอย่างพิมพ์หน้าเต็ม (A4 Full Preview)
+            </div>
+          )}
         </div>
 
         {/* ปุ่มคำสั่งหลักด้านขวา */}
         <div className="header-right">
+          {/* Action buttons ตามแต่ละมุมมอง */}
+          {appView === "editor" && (
+            <>
+              <button
+                type="button"
+                className="btn btn-view-mode-nav"
+                onClick={() => setAppView("view")}
+                title="สลับไปดูตัวอย่างพิมพ์หน้าเต็ม"
+              >
+                🖨️ ดูตัวอย่างพิมพ์
+              </button>
+              <button
+                type="button"
+                className="editor-save-go-list-btn"
+                onClick={handleSaveAndGoList}
+                title="บันทึกเอกสารและกลับหน้ารายการ"
+              >
+                ✓ บันทึกแล้วกลับรายการ
+              </button>
+            </>
+          )}
+
+          {appView === "view" && (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary btn-header-action"
+                onClick={() => setAppView("editor")}
+                title="กลับไปหน้าจอพิมพ์ร่างและแก้ไข"
+              >
+                ✏️ แก้ไขต่อ
+              </button>
+              <button
+                type="button"
+                className="btn-print-primary-nav"
+                onClick={() => window.print()}
+                title="สั่งพิมพ์เอกสาร A4 (Ctrl+P)"
+              >
+                🖨️ สั่งพิมพ์เอกสาร
+              </button>
+            </>
+          )}
+
           {/* ข้อมูลสมาชิก / เข้าสู่ระบบ */}
-          {currentUser ? (
+          {currentUser && (
             <div className="header-member-badge">
               <button
                 type="button"
@@ -712,100 +729,6 @@ export const App: React.FC = () => {
                 ออกจากระบบ
               </button>
             </div>
-          ) : (
-            <button
-              type="button"
-              className="btn btn-login-nav"
-              onClick={() => {
-                setAuthModalTab("login");
-                setIsAuthModalOpen(true);
-              }}
-              title="เข้าสู่ระบบหรือสมัครสมาชิกเพื่อผูกกองและฝ่ายอัตโนมัติ"
-            >
-              🔑 เข้าสู่ระบบ
-            </button>
-          )}
-
-          {/* Action buttons ตามแต่ละมุมมอง */}
-          {appView === "editor" && (
-            <>
-              <button
-                type="button"
-                className="btn btn-secondary btn-header-action"
-                onClick={docType === "memo" ? loadIn01Template : () => {
-                  setFields({ ...SAMPLE_EXTERNAL });
-                }}
-                title={`โหลดแม่แบบ${docType === "memo" ? "หนังสือภายใน (in01.pdf)" : "หนังสือภายนอก (03.pdf)"}`}
-              >
-                📋 โหลดแม่แบบ
-              </button>
-              <button
-                type="button"
-                className="btn btn-view-mode-nav"
-                onClick={() => setAppView("view")}
-                title="สลับไปดูตัวอย่างพิมพ์หน้าเต็ม"
-              >
-                🖨️ ตัวอย่างพิมพ์
-              </button>
-              <button
-                type="button"
-                className="editor-save-go-list-btn"
-                onClick={handleSaveAndGoList}
-                title="บันทึกเอกสารและกลับหน้ารายการ"
-              >
-                ✓ บันทึกแล้วกลับรายการ
-              </button>
-            </>
-          )}
-
-          {appView === "view" && (
-            <>
-              <button
-                type="button"
-                className="btn btn-secondary btn-header-action"
-                onClick={() => setAppView("editor")}
-                title="กลับไปหน้าจอพิมพ์ร่างและแก้ไข"
-              >
-                ✏️ แก้ไขต่อ
-              </button>
-              <button
-                type="button"
-                className="btn-print-primary-nav"
-                onClick={() => window.print()}
-                title="สั่งพิมพ์เอกสาร A4 (Ctrl+P)"
-              >
-                🖨️ สั่งพิมพ์เอกสาร
-              </button>
-              <button
-                type="button"
-                className="editor-back-btn"
-                onClick={handleBackToList}
-                title="กลับหน้ารายการ"
-              >
-                ← กลับรายการ
-              </button>
-            </>
-          )}
-
-          {appView === "list" && (
-            <>
-              <button
-                type="button"
-                className="btn-new-header btn-new-memo-nav"
-                onClick={() => handleCreateNew("memo")}
-                title="สร้างหนังสือภายในใหม่"
-              >
-                + ภายในใหม่
-              </button>
-              <button
-                type="button"
-                className="btn-new-header btn-new-external-nav"
-                onClick={() => handleCreateNew("external")}
-                title="สร้างหนังสือภายนอกใหม่"
-              >
-                + ภายนอกใหม่
-              </button>
-            </>
           )}
         </div>
       </header>

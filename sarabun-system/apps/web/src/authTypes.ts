@@ -187,9 +187,7 @@ export function loadCurrentMember(): UserMember | null {
   try {
     const raw = localStorage.getItem(STORAGE_CURRENT_USER_KEY);
     if (!raw) {
-      const defaultUser = DEFAULT_MEMBERS[0]; // nayok (เอดาจิม่า เฮฮาจิ)
-      saveCurrentMember(defaultUser);
-      return defaultUser;
+      return null;
     }
     const parsed = JSON.parse(raw);
     const demoMatch = DEFAULT_MEMBERS.find(
@@ -207,7 +205,7 @@ export function loadCurrentMember(): UserMember | null {
     }
     return parsed;
   } catch (e) {
-    return DEFAULT_MEMBERS[0];
+    return null;
   }
 }
 
