@@ -1,4 +1,4 @@
-# ระบบร่าง และพิมพ์ หนังสือราชการอิเล็กทรอนิกส์ (Draft thai Documebt Electronic Document System)
+# ระบบช่วยร่างและพิมพ์งานสารบรรณให้ตรงตามระเบียบ ตรงขอบซ้ายขวาหน้าหลัง
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B-green.svg)](https://nodejs.org/)
@@ -6,11 +6,11 @@
 [![NestJS](https://img.shields.io/badge/NestJS-10-red.svg)](https://nestjs.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue.svg)](https://www.typescriptlang.org/)
 
-ระบบเว็บแอปพลิเคชันสำหรับร่าง แก้ไข จัดเก็บ และพิมพ์หนังสือราชการไทย (หนังสือภายใน และ หนังสือภายนอก) ให้ถูกต้องตรงตาม **ระเบียบสำนักนายกรัฐมนตรีว่าด้วยงานสารบรรณ พ.ศ. ๒๕๒๖ และที่แก้ไขเพิ่มเติม** อย่างเคร่งครัด พร้อมระบบแสดงผลแบบ A4 WYSIWYG และการตัดคำภาษาไทยที่ประณีต
+ระบบเว็บแอปพลิเคชันสำหรับร่าง แก้ไข จัดเก็บ และพิมพ์หนังสือราชการไทย (หนังสือภายใน และ หนังสือภายนอก) ให้ถูกต้องตรงตาม **ระเบียบสำนักนายกรัฐมนตรีว่าด้วยงานสารบรรณ พ.ศ. ๒๕๒๖ และที่แก้ไขเพิ่มเติม** อย่างเคร่งครัด พร้อมระบบแสดงผลแบบ A4 WYSIWYG และการตัดคำภาษาไทย ที่ไม่ต้องไปวุ่ยวายกับ word ที่อัพเดทแม่งจนพิการ
 
 ---
 
-### 🖥️ ภาพหน้าจอระบบจริง (Application Screenshots)
+### 🖥️ ภาพหน้าจอ (Application Screenshots)
 
 #### 1. หน้ารายการหนังสือราชการและคลังเอกสาร (Document List & Repository)
 ![หน้ารายการคลังหนังสือราชการ](docs/images/sarabun_preview.png)
